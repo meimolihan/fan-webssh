@@ -1,0 +1,1016 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/ui/app_color_theme.dart';
+import '../../core/ui/refresh_feedback.dart';
+import '../../core/ui/top_notice.dart';
+import '../../core/utils/app_store_compliance.dart';
+import '../../l10n/app_localizations.dart';
+import '../../state/auth_notifier.dart';
+import '../../state/app_update_notifier.dart';
+import '../../state/tab_order_notifier.dart';
+import '../../state/credential_list_notifier.dart';
+import '../../state/host_list_notifier.dart';
+import '../../state/locale_notifier.dart';
+import '../../state/theme_mode_notifier.dart';
+import '../../state/package_info_provider.dart';
+import '../../state/plus_discount_notifier.dart';
+import '../../state/plus_info_notifier.dart';
+import '../../state/script_list_notifier.dart';
+import '../settings/account_security_page.dart';
+import '../settings/app_update_prompt.dart';
+import '../settings/credentials_page.dart';
+import '../settings/models/plus_info.dart';
+import '../settings/proxy_page.dart';
+import '../settings/sessions_page.dart';
+import '../settings/widgets/settings_row.dart';
+import '../settings/widgets/settings_section.dart';
+import 'tab_header.dart';
+
+class SettingsTab extends ConsumerWidget {
+  const SettingsTab({super.key});
+
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.tr('settings.logoutConfirmTitle')),
+        content: Text(l.tr('settings.logoutConfirmBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l.tr('common.cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l.tr('settings.logout')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(authProvider.notifier).signOut();
+    }
+  }
+
+  Future<void> _pickLanguage(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
+    final current = ref.read(localeProvider);
+    final selected = await showDialog<_LangChoice>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: Text(l.tr('settings.language')),
+          children: [
+            _LangOption(
+              label: l.tr('common.system'),
+              selected: current == null,
+              value: _LangChoice.system,
+            ),
+            _LangOption(
+              label: l.tr('settings.languageChinese'),
+              selected: current?.languageCode == 'zh',
+              value: _LangChoice.zh,
+            ),
+            _LangOption(
+              label: l.tr('settings.languageEnglish'),
+              selected: current?.languageCode == 'en',
+              value: _LangChoice.en,
+            ),
+          ],
+        );
+      },
+    );
+    if (selected == null) return;
+    final notifier = ref.read(localeProvider.notifier);
+    switch (selected) {
+      case _LangChoice.system:
+        await notifier.setLocale(null);
+      case _LangChoice.zh:
+        await notifier.setLocale(const Locale('zh'));
+      case _LangChoice.en:
+        await notifier.setLocale(const Locale('en'));
+    }
+  }
+
+  String _languageSubtitle(BuildContext context, Locale? locale) {
+    final l = AppLocalizations.of(context);
+    if (locale == null) return l.tr('common.system');
+    return switch (locale.languageCode) {
+      'zh' => l.tr('settings.languageChinese'),
+      'en' => l.tr('settings.languageEnglish'),
+      _ => locale.languageCode,
+    };
+  }
+
+  void _push(BuildContext context, Widget page) {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  void _showNotifications(BuildContext context, PlusDiscount discount) {
+    final l = AppLocalizations.of(context);
+    final c = context.colors;
+    final hasDiscount = discount.discount && discount.content.isNotEmpty;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: c.card,
+      constraints: const BoxConstraints(maxWidth: double.infinity),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: c.border,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l.tr('settings.notifications.tooltip'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: c.text,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (hasDiscount)
+                  _DiscountNotificationCard(
+                    content: discount.content,
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _showPlusServerManagedTip(context);
+                    },
+                  )
+                else ...[
+                  Icon(
+                    Icons.notifications_off_outlined,
+                    size: 36,
+                    color: c.softMuted,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l.tr('settings.notifications.empty'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: c.muted),
+                  ),
+                ],
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPlusServerManagedTip(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    showTopNotice(context, l.tr('plus.serverManagedTip'));
+  }
+
+  void _showThemePicker(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final current = ref.read(themeModeProvider);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l.tr('settings.theme.title')),
+        children: [
+          for (final entry in [
+            (
+              ThemeMode.system,
+              l.tr('settings.theme.system'),
+              Icons.brightness_auto,
+            ),
+            (ThemeMode.light, l.tr('settings.theme.light'), Icons.light_mode),
+            (ThemeMode.dark, l.tr('settings.theme.dark'), Icons.dark_mode),
+          ])
+            ListTile(
+              leading: Icon(entry.$3),
+              title: Text(entry.$2),
+              trailing: entry.$1 == current
+                  ? Icon(Icons.check, color: context.colors.primary)
+                  : null,
+              onTap: () {
+                ref.read(themeModeProvider.notifier).setThemeMode(entry.$1);
+                Navigator.of(ctx).pop();
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _themeModeLabel(AppLocalizations l, ThemeMode mode) {
+    return switch (mode) {
+      ThemeMode.system => l.tr('settings.theme.system'),
+      ThemeMode.light => l.tr('settings.theme.light'),
+      ThemeMode.dark => l.tr('settings.theme.dark'),
+    };
+  }
+
+  void _showTabOrderDialog(BuildContext context, WidgetRef ref) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _TabOrderDialog(
+        initialOrder: ref.read(tabOrderProvider),
+        initialHomeTab: ref.read(homeTabProvider),
+        onSave: (order, homeTab) {
+          ref.read(tabOrderProvider.notifier).setOrder(order);
+          ref.read(homeTabProvider.notifier).setHomeTab(homeTab);
+        },
+        onReset: () {
+          ref.read(tabOrderProvider.notifier).resetToDefault();
+          ref.read(homeTabProvider.notifier).resetToDefault();
+        },
+      ),
+    );
+  }
+
+  Future<void> _checkForUpdates(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
+    final result = await ref.read(appUpdateProvider.notifier).check();
+    if (!context.mounted) return;
+
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l.tr('settings.update.failed')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (!result.hasUpdate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l.tr('settings.update.latest')),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    await showAppUpdateDialog(context, result);
+  }
+
+  Future<void> _refresh(BuildContext context, WidgetRef ref) async {
+    await runRefreshWithFeedback(context, () async {
+      final refreshes = <Future<void>>[
+        ref.read(hostListProvider.notifier).refresh(throwOnError: true),
+        ref.read(credentialListProvider.notifier).refresh(throwOnError: true),
+        ref.read(scriptListProvider.notifier).refresh(throwOnError: true),
+        ref.read(plusInfoProvider.notifier).refresh(throwOnError: true),
+      ];
+      if (!isIosAppStoreCompliance) {
+        refreshes.add(
+          ref.read(plusDiscountProvider.notifier).refresh(throwOnError: true),
+        );
+      }
+      await Future.wait(refreshes);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final session = ref.watch(authProvider).session;
+    final locale = ref.watch(localeProvider);
+    final hostCount = ref.watch(hostListProvider).valueOrNull?.length ?? 0;
+    final credentialCount =
+        ref.watch(credentialListProvider).valueOrNull?.length ?? 0;
+    final scriptCount = ref.watch(scriptListProvider).valueOrNull?.length ?? 0;
+    final plusActive =
+        ref.watch(plusInfoProvider).valueOrNull?.isActive ?? false;
+    final discount =
+        ref.watch(plusDiscountProvider).valueOrNull ??
+        const PlusDiscount(discount: false, content: '');
+    final hasDiscount =
+        !isIosAppStoreCompliance &&
+        discount.discount &&
+        discount.content.isNotEmpty;
+    final packageInfo = ref.watch(packageInfoProvider).valueOrNull;
+    final updateState = ref.watch(appUpdateProvider);
+    final versionLabel = packageInfo == null
+        ? ''
+        : 'v${packageInfo.version} (${packageInfo.buildNumber})';
+
+    return Scaffold(
+      backgroundColor: context.colors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: () => _refresh(context, ref),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: TabHeader(
+                  title: l.tr('settings.title'),
+                  actions: [
+                    if (versionLabel.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Text(
+                          versionLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: context.colors.softMuted,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    if (!plusActive && !isIosAppStoreCompliance)
+                      _SettingsBellButton(
+                        hasDiscount: hasDiscount,
+                        onTap: () => _showNotifications(context, discount),
+                      ),
+                  ],
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: _ProfileCard(
+                  username: session?.username ?? '-',
+                  serverAddress: session?.serverAddress ?? '',
+                  hostCount: hostCount,
+                  credentialCount: credentialCount,
+                  scriptCount: scriptCount,
+                  plusActive: plusActive,
+                  onPlusTap: () => _showPlusServerManagedTip(context),
+                  onLogoutTap: () => _confirmLogout(context, ref),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SettingsSection(
+                  title: l.tr('settings.section.security'),
+                  children: [
+                    SettingsRow(
+                      icon: Icons.lock_outline,
+                      title: l.tr('settings.account.title'),
+                      subtitle: l.tr('settings.account.subtitle'),
+                      onTap: () => _push(context, const AccountSecurityPage()),
+                    ),
+                    SettingsRow(
+                      icon: Icons.devices_outlined,
+                      title: l.tr('settings.sessions.title'),
+                      subtitle: l.tr('settings.sessions.subtitle'),
+                      onTap: () => _push(context, const SessionsPage()),
+                    ),
+                  ],
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SettingsSection(
+                  title: l.tr('settings.section.connection'),
+                  children: [
+                    SettingsRow(
+                      icon: Icons.vpn_key_outlined,
+                      title: l.tr('settings.credentials.title'),
+                      subtitle: l.tr('settings.credentials.subtitle'),
+                      onTap: () => _push(context, const CredentialsPage()),
+                    ),
+                    SettingsRow(
+                      icon: Icons.cloud_outlined,
+                      title: l.tr('settings.proxy.title'),
+                      subtitle: l.tr('settings.proxy.subtitle'),
+                      onTap: () => _push(context, const ProxyPage()),
+                    ),
+                  ],
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SettingsSection(
+                  title: l.tr('settings.section.preferences'),
+                  children: [
+                    SettingsRow(
+                      key: const Key('settings-language'),
+                      icon: Icons.translate,
+                      title: l.tr('settings.language'),
+                      subtitle: _languageSubtitle(context, locale),
+                      onTap: () => _pickLanguage(context, ref),
+                    ),
+                    SettingsRow(
+                      icon: Icons.swap_vert_outlined,
+                      title: l.tr('settings.tabOrder.title'),
+                      subtitle: l.tr('settings.tabOrder.subtitle'),
+                      onTap: () => _showTabOrderDialog(context, ref),
+                    ),
+                    SettingsRow(
+                      icon: Icons.palette_outlined,
+                      title: l.tr('settings.theme.title'),
+                      subtitle: _themeModeLabel(
+                        l,
+                        ref.watch(themeModeProvider),
+                      ),
+                      onTap: () => _showThemePicker(context, ref),
+                    ),
+                    SettingsRow(
+                      key: const Key('settings-check-update'),
+                      icon: Icons.system_update_alt_outlined,
+                      title: l.tr('settings.update.title'),
+                      subtitle: updateState.status == AppUpdateStatus.available
+                          ? l.trf('settings.update.availableSubtitle', [
+                              updateState.result!.info.latestVersion,
+                            ])
+                          : l.tr('settings.update.subtitle'),
+                      trailing: updateState.isChecking
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : null,
+                      onTap: updateState.isChecking
+                          ? null
+                          : () => _checkForUpdates(context, ref),
+                    ),
+                  ],
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 110)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsBellButton extends StatelessWidget {
+  const _SettingsBellButton({required this.hasDiscount, required this.onTap});
+
+  final bool hasDiscount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: colors.border),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.notifications_none_outlined,
+                size: 20,
+                color: colors.primary,
+              ),
+              if (hasDiscount)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: colors.danger,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.card, width: 1.5),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    required this.username,
+    required this.serverAddress,
+    required this.hostCount,
+    required this.credentialCount,
+    required this.scriptCount,
+    required this.plusActive,
+    required this.onPlusTap,
+    required this.onLogoutTap,
+  });
+
+  final String username;
+  final String serverAddress;
+  final int hostCount;
+  final int credentialCount;
+  final int scriptCount;
+  final bool plusActive;
+  final VoidCallback onPlusTap;
+  final VoidCallback onLogoutTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: colors.chip,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.border),
+                  ),
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'assets/logo_v2_01.png',
+                    width: 30,
+                    height: 30,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              username,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: colors.text,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _PlusBadge(active: plusActive, onTap: onPlusTap),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        serverAddress,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: colors.softMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _LogoutIconButton(onTap: onLogoutTap),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: colors.chip,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  _ProfileStat(
+                    value: hostCount,
+                    label: l.tr('settings.profile.hostsLabel'),
+                  ),
+                  const _StatDivider(),
+                  _ProfileStat(
+                    value: credentialCount,
+                    label: l.tr('settings.profile.credentialsLabel'),
+                  ),
+                  const _StatDivider(),
+                  _ProfileStat(
+                    value: scriptCount,
+                    label: l.tr('settings.profile.scriptsLabel'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileStat extends StatelessWidget {
+  const _ProfileStat({required this.value, required this.label});
+
+  final int value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: colors.primary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: colors.muted,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 24, color: context.colors.border);
+  }
+}
+
+class _PlusBadge extends StatelessWidget {
+  const _PlusBadge({required this.active, required this.onTap});
+
+  final bool active;
+  final VoidCallback onTap;
+
+  static const _grayscale = ColorFilter.matrix(<double>[
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    final image = Image.asset(
+      'assets/plus.png',
+      width: 36,
+      height: 22,
+      fit: BoxFit.contain,
+    );
+    return InkWell(
+      onTap: active ? null : onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: active
+            ? image
+            : ColorFiltered(colorFilter: _grayscale, child: image),
+      ),
+    );
+  }
+}
+
+class _LogoutIconButton extends StatelessWidget {
+  const _LogoutIconButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+    return Material(
+      color: colors.chip,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        key: const Key('settings-logout'),
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Tooltip(
+          message: l.tr('settings.logout'),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.border),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.logout, size: 18, color: colors.danger),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _LangChoice { system, zh, en }
+
+class _LangOption extends StatelessWidget {
+  const _LangOption({
+    required this.label,
+    required this.selected,
+    required this.value,
+  });
+
+  final String label;
+  final bool selected;
+  final _LangChoice value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialogOption(
+      onPressed: () => Navigator.of(context).pop(value),
+      child: Row(
+        children: [
+          Icon(
+            selected ? Icons.radio_button_checked : Icons.radio_button_off,
+            color: selected ? Theme.of(context).colorScheme.primary : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiscountNotificationCard extends StatelessWidget {
+  const _DiscountNotificationCard({required this.content, required this.onTap});
+
+  final String content;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: colors.dangerSoft,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.dangerBorder),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.local_offer_outlined, size: 18, color: colors.danger),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                content,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  fontWeight: FontWeight.w600,
+                  color: colors.danger,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.info_outline_rounded, size: 18, color: colors.danger),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TabOrderDialog extends StatefulWidget {
+  const _TabOrderDialog({
+    required this.initialOrder,
+    required this.initialHomeTab,
+    required this.onSave,
+    required this.onReset,
+  });
+
+  final List<String> initialOrder;
+  final String initialHomeTab;
+  final void Function(List<String> order, String homeTab) onSave;
+  final VoidCallback onReset;
+
+  static const _tabMeta = <String, (IconData, String)>{
+    'settings': (Icons.settings_outlined, 'tabs.settings'),
+    'scripts': (Icons.article_outlined, 'tabs.scripts'),
+    'servers': (Icons.monitor_outlined, 'tabs.servers'),
+    'sftp': (Icons.folder_outlined, 'tabs.sftp'),
+    'docker': (Icons.view_in_ar_outlined, 'tabs.docker'),
+  };
+
+  @override
+  State<_TabOrderDialog> createState() => _TabOrderDialogState();
+}
+
+class _TabOrderDialogState extends State<_TabOrderDialog> {
+  late List<String> _order;
+  late String _homeTab;
+
+  @override
+  void initState() {
+    super.initState();
+    _order = List.of(widget.initialOrder);
+    _homeTab = widget.initialHomeTab;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final c = context.colors;
+    return Dialog(
+      backgroundColor: c.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: c.border),
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 18, 0, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Row(
+                children: [
+                  Icon(Icons.swap_vert_outlined, color: c.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    l.tr('settings.tabOrder.title'),
+                    style: TextStyle(
+                      color: c.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      widget.onReset();
+                      Navigator.of(context).pop();
+                    },
+                    style: TextButton.styleFrom(foregroundColor: c.muted),
+                    child: Text(
+                      l.tr('settings.tabOrder.reset'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+              child: Text(
+                l.tr('settings.tabOrder.homeHint'),
+                style: TextStyle(color: c.softMuted, fontSize: 12),
+              ),
+            ),
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              buildDefaultDragHandles: false,
+              proxyDecorator: (child, index, animation) {
+                return AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, child) => Material(
+                    elevation: 4,
+                    color: c.card,
+                    borderRadius: BorderRadius.circular(10),
+                    child: child,
+                  ),
+                  child: child,
+                );
+              },
+              itemCount: _order.length,
+              onReorderItem: (oldIndex, newIndex) {
+                setState(() {
+                  final item = _order.removeAt(oldIndex);
+                  _order.insert(newIndex, item);
+                });
+              },
+              itemBuilder: (context, index) {
+                final key = _order[index];
+                final meta = _TabOrderDialog._tabMeta[key]!;
+                final isHome = key == _homeTab;
+                return ListTile(
+                  key: ValueKey(key),
+                  onTap: () => setState(() => _homeTab = key),
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: c.chip,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(meta.$1, size: 18, color: c.primary),
+                  ),
+                  title: Row(
+                    children: [
+                      Text(
+                        l.tr(meta.$2),
+                        style: TextStyle(
+                          color: c.text,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (isHome) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.home_rounded, size: 15, color: c.primary),
+                      ],
+                    ],
+                  ),
+                  trailing: ReorderableDragStartListener(
+                    index: index,
+                    child: Icon(Icons.drag_handle, color: c.softMuted),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: c.primary,
+                  foregroundColor: c.fontOnPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  minimumSize: const Size.fromHeight(46),
+                ),
+                onPressed: () {
+                  widget.onSave(_order, _homeTab);
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  l.tr('common.save'),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

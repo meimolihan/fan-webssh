@@ -1,0 +1,133 @@
+const crypto = require('crypto')
+const { RSADecryptAsync, AESEncryptAsync, AESDecryptAsync } = require('../utils/encrypt')
+const { HostListDB, CredentialsDB } = require('../utils/db-class')
+const hostListDB = new HostListDB().getInstance()
+const credentialsDB = new CredentialsDB().getInstance()
+
+async function getSSHList({ res }) {
+  let data = await credentialsDB.findAsync({})
+  data = data?.map(item => {
+    const { name, authType, _id: id, date } = item
+    return { id, name, authType, privateKey: '', password: '', openSSHKeyPassword: '', date }
+  }) || []
+  data.sort((a, b) => b.date - a.date)
+  res.success({ data })
+}
+
+const addSSH = async ({ res, request }) => {
+  let { body: { name, authType, password, privateKey, openSSHKeyPassword, tempKey } } = request
+  let record = { name, authType, password, privateKey }
+  if (openSSHKeyPassword) record.openSSHKeyPassword = openSSHKeyPassword
+  if (!name || !record[authType]) return res.fail({ data: false, msg: '参数错误' })
+  let count = await credentialsDB.countAsync({ name })
+  if (count > 0) return res.fail({ data: false, msg: '已存在同名凭证' })
+
+  const clearTempKey = await RSADecryptAsync(tempKey)
+  const clearSSHKey = await AESDecryptAsync(record[authType], clearTempKey)
+  record[authType] = await AESEncryptAsync(clearSSHKey)
+  await credentialsDB.insertAsync({ ...record, date: Date.now() })
+  logger.info('添加凭证：', name)
+  res.success({ data: '保存成功' })
+}
+
+const updateSSH = async ({ res, request }) => {
+  let { body: { id, name, authType, password, privateKey, openSSHKeyPassword, date, tempKey } } = request
+  let record = { name, authType, password, privateKey, date }
+  if (openSSHKeyPassword) record.openSSHKeyPassword = openSSHKeyPassword
+  if (!id || !name) return res.fail({ data: false, msg: '请输入凭据名称' })
+  let oldRecord = await credentialsDB.findOneAsync({ _id: id })
+  if (!oldRecord) return res.fail({ data: false, msg: '凭证不存在' })
+  // 判断原记录是否存在当前更新记录的认证方式
+  if (!oldRecord[authType] && !record[authType]) return res.fail({ data: false, msg: `请输入${ authType === 'password' ? '密码' : '密钥' }` })
+  if (!record[authType] && oldRecord[authType]) {
+    record[authType] = oldRecord[authType]
+  } else {
+    const clearTempKey = await RSADecryptAsync(tempKey)
+    const clearSSHKey = await AESDecryptAsync(record[authType], clearTempKey)
+    record[authType] = await AESEncryptAsync(clearSSHKey)
+  }
+  await credentialsDB.updateAsync({ _id: id }, record)
+  logger.info('修改凭证：', name)
+  res.success({ data: '保存成功' })
+}
+
+const removeSSH = async ({ res, request }) => {
+  let { params: { id } } = request
+  let count = await credentialsDB.countAsync({ _id: id })
+  if (count === 0) return res.fail({ msg: '凭证不存在' })
+  // 将删除的凭证id从host中删除
+  let hostList = await hostListDB.findAsync({})
+  if (Array.isArray(hostList) && hostList.length > 0) {
+    for (let host of hostList) {
+      let { credential } = host
+      if (!credential) continue
+      credential = await AESDecryptAsync(credential)
+      if (credential === id) {
+        host.credential = ''
+        await hostListDB.updateAsync({ _id: host._id }, host)
+      }
+    }
+  }
+  await hostListDB.compactDatafileAsync()
+  logger.info('移除凭证：', id)
+  await credentialsDB.removeAsync({ _id: id })
+  res.success({ data: '移除成功' })
+}
+
+const getCommand = async ({ res, request }) => {
+  let { hostId } = request.query
+  if (!hostId) return res.fail({ data: false, msg: '参数错误' })
+  let hostInfo = await hostListDB.findAsync({})
+  let record = hostInfo?.find(item => item._id === hostId)
+  logger.info('查询登录后执行的指令：', hostId)
+  if (!record) return res.fail({ data: false, msg: 'host not found' })
+  const { command } = record
+  if (!command) return res.success({ data: false })
+  res.success({ data: command })
+}
+
+const decryptPrivateKey = async ({ res, request }) => {
+  const { privateKey, password } = request.body
+  if (!privateKey || !password) {
+    return res.fail({ msg: 'param error' })
+  }
+  try {
+    const privateKeyObject = crypto.createPrivateKey({
+      key: privateKey,
+      format: 'pem',
+      passphrase: password
+    })
+    const decryptedKey = privateKeyObject.export({
+      type: 'pkcs1',
+      format: 'pem'
+    })
+    res.success({
+      data: decryptedKey,
+      msg: 'decrypt success'
+    })
+  } catch (error) {
+    logger.error('Private key decryption failed:', error.message)
+    res.fail({
+      msg: 'decrypt failed',
+      data: { message: error.message }
+    })
+  }
+}
+
+const getRdpToken = async ({ res, request }) => {
+  const { host, port, username, password } = request.query
+  if (!host || !port) return res.fail({ msg: '参数错误' })
+  // 生成RDP连接token
+  const token = crypto.randomBytes(32).toString('hex')
+  res.success({ data: { token, host, port, username } })
+}
+
+module.exports = {
+  getSSHList,
+  addSSH,
+  updateSSH,
+  removeSSH,
+  getCommand,
+  decryptPrivateKey,
+  getRdpToken
+}

@@ -1,0 +1,324 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/ui/app_color_theme.dart';
+import '../../features/settings/app_update_prompt.dart';
+import '../../l10n/app_localizations.dart';
+import '../../state/app_update_notifier.dart';
+import '../../state/auth_notifier.dart';
+import '../../state/plus_info_notifier.dart';
+import '../../state/tab_order_notifier.dart';
+import '../../state/terminal_providers.dart';
+import '../docker/docker_icon.dart';
+import '../docker/docker_tab.dart';
+import '../servers/servers_tab.dart';
+import 'scripts_tab.dart';
+import 'settings_tab.dart';
+import 'sftp_session_manager.dart';
+import 'sftp_tab.dart';
+
+/// Top-level shell shown after login. Hosts the four bottom-nav tabs the
+/// product spec calls for: Servers / SFTP / Scripts / Settings.
+///
+/// Tabs are kept alive via [IndexedStack] so switching back doesn't refetch.
+class MainShellPage extends ConsumerStatefulWidget {
+  const MainShellPage({super.key});
+
+  @override
+  ConsumerState<MainShellPage> createState() => _MainShellPageState();
+}
+
+class _MainShellPageState extends ConsumerState<MainShellPage> {
+  late int _index;
+
+  static const _allTabs = <String, Widget>{
+    'settings': SettingsTab(),
+    'scripts': ScriptsTab(),
+    'servers': ServersTab(),
+    'sftp': SftpTab(),
+    'docker': DockerTab(),
+  };
+
+  static _WarmBottomBarItem _barItem(String key, AppLocalizations l) {
+    return switch (key) {
+      'settings' => _WarmBottomBarItem(
+          icon: const Icon(Icons.settings_outlined),
+          label: l.tr('tabs.settings'),
+        ),
+      'scripts' => _WarmBottomBarItem(
+          icon: const Icon(Icons.article_outlined),
+          label: l.tr('tabs.scripts'),
+        ),
+      'servers' => _WarmBottomBarItem(
+          icon: const Icon(Icons.monitor_outlined),
+          label: l.tr('tabs.servers'),
+        ),
+      'sftp' => _WarmBottomBarItem(
+          icon: const Icon(Icons.folder_outlined),
+          label: l.tr('tabs.sftp'),
+        ),
+      'docker' => _WarmBottomBarItem(
+          icon: const DockerIcon(),
+          label: l.tr('tabs.docker'),
+        ),
+      _ => _WarmBottomBarItem(
+          icon: const Icon(Icons.help_outline),
+          label: key,
+        ),
+    };
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final order = ref.read(tabOrderProvider);
+    final homeTab = ref.read(homeTabProvider);
+    _index = order.indexOf(homeTab).clamp(0, order.length - 1);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _checkUpdatesSilently(),
+    );
+  }
+
+  Future<void> _checkUpdatesSilently() async {
+    final result = await ref.read(appUpdateProvider.notifier).check();
+    if (!mounted || result == null || !result.hasUpdate) return;
+    await showAppUpdateDialog(context, result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(authProvider, (_, _) {});
+    ref.watch(plusInfoProvider);
+
+    final l = AppLocalizations.of(context);
+    final sftpManager = ref.watch(sftpSessionManagerProvider);
+    final tabOrder = ref.watch(tabOrderProvider);
+    final tabs = tabOrder.map((k) => _allTabs[k]!).toList();
+    final items = tabOrder.map((k) => _barItem(k, l)).toList();
+
+    return AnimatedBuilder(
+      animation: sftpManager,
+      builder: (context, child) {
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (_canGoUpInSftp(sftpManager, tabOrder)) {
+              sftpManager.goParent();
+            } else {
+              _confirmExit(context);
+            }
+          },
+          child: child!,
+        );
+      },
+      child: Scaffold(
+        extendBody: true,
+        backgroundColor: context.colors.canvas,
+        body: SafeArea(
+          bottom: false,
+          child: IndexedStack(index: _index, children: tabs),
+        ),
+        bottomNavigationBar: _WarmBottomBar(
+          selectedIndex: _index,
+          onSelected: (i) => setState(() => _index = i),
+          items: items,
+        ),
+      ),
+    );
+  }
+
+  bool _canGoUpInSftp(SftpSessionManager manager, List<String> order) {
+    if (order[_index] != 'sftp') return false;
+    final session = manager.activeSession;
+    if (session == null) return false;
+    if (session.status != SftpConnectionStatus.connected) return false;
+    final path = session.currentPath;
+    return path.isNotEmpty && path != '/' && path != '~';
+  }
+
+  Future<void> _confirmExit(BuildContext context) async {
+    final l = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l.tr('common.exitAppTitle')),
+        content: Text(l.tr('common.exitAppBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l.tr('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l.tr('common.exitApp')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await SystemNavigator.pop();
+    }
+  }
+}
+
+class _WarmBottomBar extends StatelessWidget {
+  const _WarmBottomBar({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.items,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final List<_WarmBottomBarItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            context.colors.canvas.withValues(alpha: 0),
+            context.colors.canvas.withValues(alpha: 0.55),
+            context.colors.canvas.withValues(alpha: 0.85),
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(21, 12, 21, 8 + bottomPadding),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(36),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              height: 52,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: context.colors.card,
+                borderRadius: BorderRadius.circular(36),
+                border: Border.all(color: context.colors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.colors.primary.withValues(alpha: 0.12),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  AnimatedAlign(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    alignment: _indicatorAlignment,
+                    child: FractionallySizedBox(
+                      widthFactor: 1 / items.length,
+                      heightFactor: 1,
+                      child: const _WarmBottomBarIndicator(),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        Expanded(
+                          child: _WarmBottomBarButton(
+                            item: items[i],
+                            selected: i == selectedIndex,
+                            onTap: () => onSelected(i),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Alignment get _indicatorAlignment {
+    if (items.length <= 1) return Alignment.center;
+    final step = 2 / (items.length - 1);
+    return Alignment(-1 + (step * selectedIndex), 0);
+  }
+}
+
+class _WarmBottomBarIndicator extends StatelessWidget {
+  const _WarmBottomBarIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: BoxDecoration(
+        color: context.colors.accent.withValues(alpha: 0.74),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.38)),
+        boxShadow: [
+          BoxShadow(
+            color: context.colors.accent.withValues(alpha: 0.24),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WarmBottomBarButton extends StatelessWidget {
+  const _WarmBottomBarButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _WarmBottomBarItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? context.colors.fontOnPrimary
+        : context.colors.softMuted;
+    return Tooltip(
+      message: item.label,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(26),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(26),
+          onTap: onTap,
+          child: IconTheme(
+            data: IconThemeData(size: 22, color: color),
+            child: Center(child: item.icon),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WarmBottomBarItem {
+  const _WarmBottomBarItem({required this.icon, required this.label});
+
+  final Widget icon;
+  final String label;
+}

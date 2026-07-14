@@ -1,0 +1,28 @@
+const { createProxyMiddleware } = require('http-proxy-middleware')
+
+/**
+ * RDP代理中间件
+ * 将/rdp-proxy/guac路径的请求代理到RDP独立端口
+ */
+const createRdpProxyMiddleware = () => {
+  const RDP_PORT = process.env.RDP_PORT || 8083
+  const RDP_HOST = process.env.RDP_HOST || '127.0.0.1'
+  const target = `http://${ RDP_HOST }:${ RDP_PORT }`
+
+  logger.info('创建RDP代理转发:', target)
+
+  // 创建WebSocket代理
+  const wsProxy = createProxyMiddleware({
+    target,
+    ws: true,
+    changeOrigin: true,
+    pathRewrite: {
+      '^/rdp-proxy': ''
+    },
+    logLevel: 'debug'
+  })
+
+  return wsProxy
+}
+
+module.exports = createRdpProxyMiddleware

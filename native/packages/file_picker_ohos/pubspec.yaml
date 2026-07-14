@@ -1,0 +1,19 @@
+name: file_picker_ohos
+description: EasyNode vendored OHOS native registration for file_picker.
+version: 10.3.8
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      ohos:
+        package: com.file_picker
+        pluginClass: FilePickerPlugin

@@ -1,0 +1,43 @@
+{
+  "name": "easynode",
+  "description": "web ssh",
+  "private": true,
+  "workspaces": [
+    "server",
+    "web",
+    "client"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chaos-zhu/easynode.git"
+  },
+  "keywords": [
+    "vps",
+    "node",
+    "easynode",
+    "chaos",
+    "chaoszhu"
+  ],
+  "author": "chaoszhu",
+  "license": "ISC",
+  "scripts": {
+    "dev": "concurrently -k \"yarn workspace web run dev\" \"yarn workspace server run local\"",
+    "clean": "yarn clean:native && yarn clean:web-server",
+    "clean:web-server": "rimraf web/node_modules server/node_modules node_modules",
+    "clean:native": "rimraf native/build native/.dart_tool native/.pub native/.pub-cache native/coverage native/android/.gradle native/android/app/build native/ios/Pods native/ios/.symlinks native/ios/Flutter/.last_build_id",
+    "android": "cd native && flutter run -d android",
+    "ios": "cd native && flutter run -d ios",
+    "encrypt": "node ./local-script/encrypt-file.js"
+  },
+  "bugs": {
+    "url": "https://github.com/chaos-zhu/easynode/issues"
+  },
+  "homepage": "https://github.com/chaos-zhu/easynode#readme",
+  "resolutions": {
+    "qs": "^6.14.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "rimraf": "^6.0.1"
+  }
+}

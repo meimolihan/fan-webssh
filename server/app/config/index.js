@@ -1,0 +1,35 @@
+const path = require('path')
+
+module.exports = {
+  httpPort: process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT) : 8082,
+  httpsPort: process.env.HTTPS_PORT ? parseInt(process.env.HTTPS_PORT) : 8092,
+  enableHttps: process.env.ENABLE_HTTPS ? parseInt(process.env.ENABLE_HTTPS) : 0, // 0:关闭 1:自签证书 2:传入证书路径
+  sslCertPath: process.env.SSL_CERT_PATH,
+  sslKeyPath: process.env.SSL_KEY_PATH,
+  uploadDir: path.join(process.cwd(),'app/db'),
+  staticDir: path.join(process.cwd(),'app/static'),
+  sftpCacheDir: path.join(process.cwd(),'app/socket/sftp-cache'),
+  credentialsDBPath: path.join(process.cwd(),'app/db/credentials.db'),
+  keyDBPath: path.join(process.cwd(),'app/db/key.db'),
+  hostListDBPath: path.join(process.cwd(),'app/db/host.db'),
+  groupConfDBPath: path.join(process.cwd(),'app/db/group.db'),
+  scriptsDBPath: path.join(process.cwd(),'app/db/scripts.db'),
+  scriptGroupDBPath: path.join(process.cwd(),'app/db/script-group.db'),
+  notifyDBPath: path.join(process.cwd(),'app/db/notify.db'),
+  notifyConfigDBPath: path.join(process.cwd(),'app/db/notify-config.db'),
+  onekeyDBPath: path.join(process.cwd(),'app/db/onekey.db'),
+  aiConfigDBPath: path.join(process.cwd(),'app/db/ai-config.db'),
+  chatHistoryDBPath: path.join(process.cwd(),'app/db/chat-history.db'),
+  favoriteSftpDBPath: path.join(process.cwd(),'app/db/favorite-sftp.db'),
+  proxyDBPath: path.join(process.cwd(),'app/db/proxy.db'),
+  fileTransferDBPath: path.join(process.cwd(),'app/db/file-transfer.db'),
+  terminalConfigDBPath: path.join(process.cwd(),'app/db/terminal-config.db'),
+  serverListDBPath: path.join(process.cwd(),'app/db/server-list-config.db'),
+  sessionDBPath: path.join(process.cwd(),'app/db/session.db'),
+  terminalSessionDBPath: path.join(process.cwd(),'app/db/terminal-session.db'),
+  apiPrefix: '/api/v1',
+  logConfig: {
+    outDir: path.join(process.cwd(),'./app/db/logs'),
+    DEBUG: process.env.DEBUG !== 'false'
+  }
+}

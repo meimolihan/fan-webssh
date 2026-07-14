@@ -1,0 +1,65 @@
+:root {
+  --el-font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+}
+
+html {
+  font-size: 15px;
+  font-family: var(--el-font-family);
+}
+
+html,
+body,
+div,
+ul,
+section,
+textarea {
+  box-sizing: border-box;
+
+  // 滚动条整体部分
+  &::-webkit-scrollbar {
+    width: 0px; // 暂且隐藏滚动条
+    height: 6px;
+  }
+
+  // 底层轨道
+  // &::-webkit-scrollbar-track {
+  //   background-color: #ffffff;
+  //   border-radius: 3px;
+  // }
+
+  // 滚动滑块
+  &::-webkit-scrollbar-thumb {
+    background-color: #0003;
+    border-radius: 10px;
+    transition: all .2s ease-in-out;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    cursor: pointer;
+    background-color: #0000004d;
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: 10px;
+  }
+}
+
+::view-transition-new(root),
+::view-transition-old(root) {
+  /* 关闭默认动画，否则影响自定义动画的执行 */
+  animation: none;
+}
+
+// 全局背景
+body {
+  background-color: #E7EBF4;
+  background-image: url(https://gw.alipayobjects.com/zos/rmsportal/TVYTbAXWheQpRcWDaDMu.svg);
+  background-repeat: no-repeat;
+  background-position: center 110px;
+  background-size: 58%;
+}
+
+.link {
+  color: var(--el-color-primary);
+  cursor: pointer;
+}

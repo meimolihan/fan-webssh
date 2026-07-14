@@ -1,0 +1,225 @@
+const jwt = require('jsonwebtoken')
+const axios = require('axios')
+const speakeasy = require('speakeasy')
+const QRCode = require('qrcode')
+const uap = require('ua-parser-js')
+const { v4: uuidv4 } = require('uuid')
+const version = require('../../package.json').version
+const { sendNoticeAsync } = require('../utils/notify')
+const { RSADecryptAsync, AESEncryptAsync, SHA1Encrypt, SHA256Encrypt } = require('../utils/encrypt')
+const { getNetIPInfo, timingSafeEqual } = require('../utils/tools')
+const { KeyDB, SessionDB } = require('../utils/db-class')
+
+const keyDB = new KeyDB().getInstance()
+const sessionDB = new SessionDB().getInstance()
+
+// 仅允许三种登录有效期：3天 / 7天 / 30天
+const ALLOWED_JWT_EXPIRES = {
+  '3d': 3 * 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000
+}
+
+const getpublicKey = async ({ res }) => {
+  let { publicKey: data } = await keyDB.findOneAsync({})
+  if (!data) return res.fail({ msg: 'publicKey not found, Try to restart the server', status: 500 })
+  res.success({ data })
+}
+
+const parseLoginAgentInfo = (userAgent = '') => {
+  const nativeMatch = userAgent.match(/^EasyNode-(Android|iOS|macOS|Windows|Linux|Native)\/(\S+)\s*(?:\(([^)]*)\))?/)
+  if (nativeMatch) {
+    const [, clientName, appVersion, parenContent = ''] = nativeMatch
+    const parts = parenContent.split(';').map(s => s.trim()).filter(Boolean)
+    return {
+      browser: { name: `EasyNode ${ clientName }`, version: appVersion || '' },
+      os: { name: clientName, version: parts.join('; ') || '' }
+    }
+  }
+  return uap(userAgent)
+}
+
+let timer = null
+const allowErrCount = 5 // 允许错误的次数
+const forbidTimer = 60 * 5 // 禁止登录时间
+let loginErrCount = 0 // 每一轮的登录错误次数
+let loginErrTotal = 0 // 总的登录错误次数
+let loginCountDown = forbidTimer
+let forbidLogin = false
+
+const login = async (ctx) => {
+  const { res, request } = ctx
+  let { body: { loginName, ciphertext, jwtExpires, mfa2Token }, ip: clientIp, header } = request
+  if (!loginName || !ciphertext || !jwtExpires || !header) return res.fail({ msg: '请求非法!' })
+  const jwtExpiresDuration = ALLOWED_JWT_EXPIRES[jwtExpires]
+  if (typeof jwtExpiresDuration !== 'number') return res.fail({ msg: '请求非法!' })
+  const jwtExpireAt = Date.now() + jwtExpiresDuration
+  if (forbidLogin) return res.fail({ msg: `禁止登录! 倒计时[${ loginCountDown }s]后尝试登录或重启面板服务` })
+  loginErrCount++
+  loginErrTotal++
+  if (loginErrCount >= allowErrCount) {
+    const { ip, country, city } = await getNetIPInfo(clientIp)
+    // 异步发送通知&禁止登录
+    sendNoticeAsync('err_login', '登录错误提醒', `错误登录次数: ${ loginErrTotal }\n地点：${ country + city }\nIP: ${ ip }`)
+    forbidLogin = true
+    loginErrCount = 0
+
+    // forbidTimer秒后解禁
+    setTimeout(() => {
+      forbidLogin = false
+    }, loginCountDown * 1000)
+
+    // 计算登录倒计时
+    timer = setInterval(() => {
+      if (loginCountDown <= 0) {
+        clearInterval(timer)
+        timer = null
+        loginCountDown = forbidTimer
+        return
+      }
+      loginCountDown--
+    }, 1000)
+  }
+
+  // 登录流程
+  try {
+    let loginPwd = await RSADecryptAsync(ciphertext)
+    let { user, pwd, enableMFA2, secret } = await keyDB.findOneAsync({})
+    if (enableMFA2) {
+      const isValid = speakeasy.totp.verify({ secret, encoding: 'base32', token: String(mfa2Token), window: 1 })
+      console.log('MFA2 verfify:', isValid)
+      if (!isValid) return res.fail({ msg: '验证失败' })
+    }
+
+    // 统一使用SHA1加密验证
+    loginPwd = SHA1Encrypt(loginPwd)
+    if (!timingSafeEqual(loginName, user) || !timingSafeEqual(loginPwd, pwd)) return res.fail({ msg: `用户名或密码错误 ${ loginErrTotal }/${ allowErrCount }` })
+    if (loginName !== user || loginPwd !== pwd) return res.fail({ msg: `用户名或密码错误 ${ loginErrTotal }/${ allowErrCount }` })
+
+    const { token, session, deviceId } = await beforeLoginHandler(clientIp, jwtExpires, jwtExpireAt, parseLoginAgentInfo(header?.['user-agent'] || ''))
+    ctx.cookies.set('session', session, {
+      httpOnly: true,
+      expires: new Date(jwtExpireAt),
+      sameSite: 'strict'
+    })
+    return res.success({ data: { token, deviceId }, msg: '登录成功' })
+  } catch (error) {
+    console.log('登录失败：', error.message)
+    res.fail({ msg: '登录失败, 请查看服务端日志' })
+  }
+}
+
+const beforeLoginHandler = async (clientIp, jwtExpires, jwtExpireAt, agentInfo) => {
+  loginErrCount = loginErrTotal = 0 // 登录成功, 清空错误次数
+  const session = uuidv4()
+  const deviceId = uuidv4()
+  let { jwtToken, _id: userId } = await keyDB.findOneAsync({})
+  if (!jwtToken || !userId) throw new Error('加密串获取失败，请重启服务!')
+  let token = jwt.sign({ create: Date.now(), userId, session }, `${ jwtToken }-${ userId }`, { expiresIn: jwtExpires })
+  const tokenHash = SHA256Encrypt(token)
+  token = await AESEncryptAsync(token) // 对称加密token后再传输给前端
+
+  const clientIPInfo = await getNetIPInfo(clientIp)
+  const { ip, country, city } = clientIPInfo || {}
+  logger.info('登录成功:', { ip, country, city, agentInfo })
+
+  // 登录通知
+  sendNoticeAsync('login', '登录提醒', `地点：${ country + city }\nIP: ${ ip }\n设备信息: ${ agentInfo?.browser?.name } ${ agentInfo?.os?.name }`)
+
+  await sessionDB.insertAsync({ session, tokenHash, userId, deviceId, revoked: false, ip, country, city, agentInfo, create: Date.now(), expireAt: jwtExpireAt })
+  return { token, session, deviceId }
+}
+
+const updatePwd = async ({ res, request }) => {
+  let { body: { oldLoginName, oldPwd, newLoginName, newPwd } } = request
+  let rsaOldPwd = await RSADecryptAsync(oldPwd)
+  oldPwd = SHA1Encrypt(rsaOldPwd)
+  let keyObj = await keyDB.findOneAsync({})
+  let { user, pwd } = keyObj
+  if (oldLoginName !== user || oldPwd !== pwd) return res.fail({ data: false, msg: '原用户名或密码校验失败' })
+  // 旧密钥校验通过，加密保存新密码
+  newPwd = SHA1Encrypt(await RSADecryptAsync(newPwd))
+  keyObj.user = newLoginName
+  keyObj.pwd = newPwd
+  await keyDB.updateAsync({ _id: keyObj._id }, { $set: keyObj })
+  sendNoticeAsync('updatePwd', '用户密码修改提醒', `原用户名：${ user }\n更新用户名: ${ newLoginName }`)
+  res.success({ data: true, msg: 'success' })
+}
+
+const getEasynodeVersion = async ({ res }) => {
+  try {
+    // const { data } = await axios.get('https://api.github.com/repos/chaos-zhu/easynode/releases/latest')
+    const { data } = await axios.get('https://get-easynode-latest-version.chaoszhu.workers.dev/version')
+    res.success({ data, msg: 'success' })
+  } catch (error) {
+    logger.error('Failed to fetch Easynode latest version:', error)
+    res.fail({ msg: 'Failed to fetch Easynode latest version' })
+  }
+}
+
+let tempSecret = null
+const getMFA2Status = async ({ res }) => {
+  const { enableMFA2 = false } = await keyDB.findOneAsync({})
+  res.success({ data: enableMFA2, msg: 'success' })
+}
+const getMFA2Code = async ({ res }) => {
+  const { user } = await keyDB.findOneAsync({})
+  let { otpauth_url, base32 } = speakeasy.generateSecret({ name: `EasyNode-${ user }`, length: 20 })
+  tempSecret = base32
+  const qrImage = await QRCode.toDataURL(otpauth_url)
+  const data = { qrImage, secret: tempSecret }
+  res.success({ data, msg: 'success' })
+}
+
+const enableMFA2 = async ({ res, request }) => {
+  const { body: { token } } = request
+  if (!token) return res.fail({ data: false, msg: '参数错误' })
+  try {
+    // const isValid = authenticator.verify({ token, secret: tempSecret })
+    const isValid = speakeasy.totp.verify({ secret: tempSecret, encoding: 'base32', token, window: 1 })
+    if (!isValid) return res.fail({ msg: '验证失败' })
+    const keyConfig = await keyDB.findOneAsync({})
+    keyConfig.enableMFA2 = true
+    keyConfig.secret = tempSecret
+    tempSecret = null
+    await keyDB.updateAsync({ _id: keyConfig._id }, { $set: keyConfig })
+    res.success({ msg: '验证成功' })
+  } catch (error) {
+    logger.error('MFA2验证失败:', error.message)
+    res.fail({ msg: `验证失败: ${ error.message }` })
+  }
+}
+
+const disableMFA2 = async ({ res, request }) => {
+  const { body: { token } } = request
+  if (!token) return res.fail({ data: false, msg: '请输入MFA2验证码' })
+
+  try {
+    const keyConfig = await keyDB.findOneAsync({})
+    const { secret } = keyConfig
+
+    // 验证MFA2 token
+    const isValid = speakeasy.totp.verify({ secret, encoding: 'base32', token: String(token), window: 1 })
+    if (!isValid) return res.fail({ msg: '验证码错误' })
+
+    // 验证通过，禁用MFA2
+    keyConfig.enableMFA2 = false
+    keyConfig.secret = null
+    await keyDB.updateAsync({ _id: keyConfig._id }, { $set: keyConfig })
+    res.success({ msg: '禁用成功' })
+  } catch (error) {
+    logger.error('禁用MFA2失败:', error.message)
+    res.fail({ msg: `禁用失败: ${ error.message }` })
+  }
+}
+
+module.exports = {
+  login,
+  getpublicKey,
+  updatePwd,
+  getEasynodeVersion,
+  getMFA2Status,
+  getMFA2Code,
+  enableMFA2,
+  disableMFA2
+}

@@ -1,0 +1,18 @@
+// custom dark variables
+@use "./dark.scss";
+
+.el-tabs {
+  --el-tabs-header-height: 32px;
+}
+
+.el-collapse-item__header {
+  border: none !important;
+}
+
+.el-collapse {
+  border-bottom-width: 0px;
+}
+
+.el-loading-mask {
+  z-index: 99!important;
+}

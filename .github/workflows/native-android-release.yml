@@ -1,0 +1,148 @@
+name: Build Native Android
+
+on:
+  push:
+    tags:
+      - 'native-v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: '分支或标签，留空则用上方所选分支；标签形如 native-v0.1.0'
+        required: false
+        type: string
+      publish_release:
+        description: '是否把 APK 上传到 GitHub Release 附件'
+        required: false
+        type: boolean
+        default: false
+      release_tag:
+        description: '上传到哪个 Release 的标签（勾选上传时必填，需是已存在的 native-v* 标签）'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: native
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Validate native tag
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ ! "$TAG" =~ ^native-v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+            echo "Invalid tag: $TAG"
+            echo "Tag must look like native-v0.1.0"
+            exit 1
+          fi
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Restore Android signing files
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          # 任一签名 Secret 为空就直接失败，避免 gradle 静默回退到 debug keystore
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_STORE_PASSWORD ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required secret: $name"
+              exit 1
+            fi
+          done
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/easynode-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_STORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=easynode-release.jks
+          EOF
+
+      - name: Build split APK
+        run: flutter build apk --release --split-per-abi
+
+      # AAB 仅用于上架 Google Play。当前走 GitHub Release / APK 直装分发，暂不构建。
+      # 若要上架 Google Play，取消下面两行注释，并恢复后续两个上传步骤里的 *.aab 路径。
+      # - name: Build app bundle
+      #   run: flutter build appbundle --release
+
+      - name: Verify release signing (reject debug keystore)
+        shell: bash
+        run: |
+          # build.gradle.kts 在 key.properties 缺失/为空时会回退到 debug 签名且不报错，
+          # 这里强制校验产物证书，确保是 release keystore 而非 debug keystore。
+          APK=$(ls build/app/outputs/flutter-apk/app-arm64-v8a-release.apk)
+          APKSIGNER=$(ls "$ANDROID_SDK_ROOT"/build-tools/*/apksigner | sort -V | tail -n1)
+          CERTS=$("$APKSIGNER" verify --print-certs "$APK")
+          echo "$CERTS"
+          if echo "$CERTS" | grep -qi "CN=Android Debug"; then
+            echo "APK is signed with the debug keystore. Release signing failed."
+            exit 1
+          fi
+
+      - name: Compute artifact name
+        id: meta
+        shell: bash
+        run: |
+          REF="${{ github.event.inputs.ref || github.ref_name }}"
+          # artifact 名不允许 / : < > | * ? \ 等字符，统一替换为 -
+          SAFE=$(printf '%s' "$REF" | tr -c 'A-Za-z0-9._-' '-')
+          echo "artifact=easynode-native-android-${SAFE}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.artifact }}
+          path: |
+            native/build/app/outputs/flutter-apk/*.apk
+
+      - name: Validate manual release input
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release
+        shell: bash
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if [[ ! "$TAG" =~ ^native-v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+            echo "勾选了 publish_release，但 release_tag 不是合法 native-v* 标签：'$TAG'"
+            exit 1
+          fi
+
+      - name: Upload APK to GitHub Release
+        if: >-
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/native-v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          files: |
+            native/build/app/outputs/flutter-apk/*.apk
