@@ -1,9 +1,12 @@
 <template>
   <div class="rdp_container">
     <div class="header">
-      <el-dropdown trigger="click">
+      <el-button type="primary" @click="openAddHost">
+        新建连接
+      </el-button>
+      <el-dropdown v-if="rdpHostList.length" trigger="click">
         <el-button type="primary">
-          新建连接<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          快速连接<el-icon class="el-icon--right"><ArrowDown /></el-icon>
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -140,6 +143,11 @@ const addRDP = (item) => {
   if (!isConfig) return $message.warning('请先配置RDP连接信息')
   if (rdpTabs.some(tab => tab.id === id)) return $message.warning('已存在该实例的RDP连接')
   rdpTabs.push({ show: true, status: rdpStatus.IDLE, id, name, host, username })
+}
+
+const openAddHost = () => {
+  updateHostData.value = null
+  hostFormVisible.value = true
 }
 
 const handleUpdateList = async ({ host }) => {

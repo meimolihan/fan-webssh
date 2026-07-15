@@ -25,7 +25,7 @@
         clearable
         show-password
         placeholder=""
-        autocomplete="off"
+        autocomplete="new-password"
         class="input"
       />
     </el-form-item>
@@ -45,7 +45,7 @@
         show-password
         clearable
         placeholder=""
-        autocomplete="off"
+        autocomplete="new-password"
         class="input"
         @keyup.enter="handleUpdate"
       />

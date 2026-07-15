@@ -11,4 +11,13 @@ services:
          - /var/run/docker.sock:/var/run/docker.sock:ro
       environment:
          - GUACD_PORT=4822
-         - GUACD_HOST=127.0.0.1
+         - GUACD_HOST=guacd
+      depends_on:
+         - guacd
+
+   guacd:
+      container_name: guacd
+      image: guacamole/guacd:latest
+      restart: always
+      ports:
+         - 4822:4822

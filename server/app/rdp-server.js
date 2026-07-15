@@ -21,7 +21,7 @@ const guacdOptions = {
 const clientOptions = {
   crypt: {
     cypher: 'AES-256-CBC',
-    key: global.rpdToken || Array.from({ length:32 },()=>Math.random().toString(36)[2]).join('')
+    key: global.rpdEncryptionKey || require('crypto').randomBytes(32)
   }
 }
 

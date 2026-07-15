@@ -4,6 +4,19 @@ const { HostListDB, CredentialsDB } = require('../utils/db-class')
 const hostListDB = new HostListDB().getInstance()
 const credentialsDB = new CredentialsDB().getInstance()
 
+// AES-256-CBC 加密，生成 guacamole-lite 兼容的 token 格式
+function encryptGuacToken(data, key) {
+  const iv = crypto.randomBytes(16)
+  const cipher = crypto.createCipheriv('AES-256-CBC', key, iv)
+  let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'binary')
+  encrypted += cipher.final('binary')
+  const payload = {
+    iv: Buffer.from(iv).toString('base64'),
+    value: Buffer.from(encrypted, 'binary').toString('base64')
+  }
+  return Buffer.from(JSON.stringify(payload)).toString('base64')
+}
+
 async function getSSHList({ res }) {
   let data = await credentialsDB.findAsync({})
   data = data?.map(item => {
@@ -115,11 +128,53 @@ const decryptPrivateKey = async ({ res, request }) => {
 }
 
 const getRdpToken = async ({ res, request }) => {
-  const { host, port, username, password } = request.query
-  if (!host || !port) return res.fail({ msg: '参数错误' })
-  // 生成RDP连接token
-  const token = crypto.randomBytes(32).toString('hex')
-  res.success({ data: { token, host, port, username } })
+  const { hostId, width, height, quality, dpi } = request.query
+  if (!hostId) return res.fail({ msg: '参数错误：缺少hostId' })
+
+  // 从数据库查询主机记录
+  const hostRecord = await hostListDB.findOneAsync({ _id: hostId })
+  if (!hostRecord) return res.fail({ msg: '主机不存在' })
+
+  const { host: hostname, port, username, password: encryptedPassword, authType } = hostRecord
+  if (!hostname) return res.fail({ msg: '主机IP未配置' })
+
+  // 解密密码
+  let clearPassword = ''
+  if (encryptedPassword) {
+    try {
+      clearPassword = await AESDecryptAsync(encryptedPassword)
+    } catch (e) {
+      logger.error('RDP密码解密失败:', e.message)
+    }
+  }
+
+  const rdpPort = port || 3389
+
+  // 构建 guacamole-lite 需要的 token 数据结构
+  const tokenData = {
+    connection: {
+      type: 'rdp',
+      settings: {
+        hostname,
+        port: String(rdpPort),
+        username: username || '',
+        password: clearPassword,
+        'ignore-cert': true,
+        'disable-audio': true,
+        'enable-wallpaper': false,
+        'create-drive-path': true,
+        security: 'any',
+        'disable-auth': false
+      }
+    }
+  }
+
+  // 使用全局 AES-256-CBC key 加密 token
+  const key = global.rpdEncryptionKey
+  if (!key) return res.fail({ msg: 'RDP加密密钥未初始化' })
+
+  const encryptedToken = encryptGuacToken(tokenData, key)
+  res.success({ data: encryptedToken })
 }
 
 module.exports = {
