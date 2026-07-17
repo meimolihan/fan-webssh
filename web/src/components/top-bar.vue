@@ -7,6 +7,16 @@
         </el-icon>
       </div>
 
+      <div class="mobile_theme_switch">
+        <el-switch
+          v-model="isDark"
+          inline-prompt
+          :active-icon="Moon"
+          :inactive-icon="Sunny"
+          class="dark_switch"
+        />
+      </div>
+
       <!-- 左侧菜单模式：显示标题 -->
       <h2 v-if="menuPosition === 'left'">{{ title }}</h2>
 
@@ -115,7 +125,7 @@
 <script setup>
 import { ref, getCurrentInstance, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { User, Fold, Document } from '@element-plus/icons-vue'
+import { User, Fold, Document, Moon, Sunny } from '@element-plus/icons-vue'
 import packageJson from '../../package.json'
 import MenuList from './menuList.vue'
 import AiButton from './ai-chat/ai-button.vue'
@@ -130,6 +140,12 @@ const menuCollapse = ref(false)
 
 const { isMobileScreen } = useMobileWidth()
 
+const isDark = computed({
+  get: () => $store.isDark,
+  set: (val) => {
+    $store.setTheme(val)
+  }
+})
 const isNew = computed(() => latestVersion.value && latestVersion.value !== currentVersion.value)
 const user = computed(() => $store.user)
 const title = computed(() => $store.title)
