@@ -132,14 +132,18 @@ bash scripts/install.sh -p 9000 -d /var/lib/fan-webssh -y
 
 | 命令 | 说明 |
 |------|------|
-| `fan-webssh status` | 查看运行方式（systemd / Docker / 直接运行）、PID、监听端口、运行时长、内存与路径 |
+| `fan-webssh status` | 查看运行方式（systemd / Docker / 直接运行）、PID、监听端口、Local/Network 访问地址、运行时长、内存与路径 |
+| `fan-webssh credentials` | 查看登录用户名与初始密码（修改密码后不再显示） |
 | `fan-webssh start` / `stop` / `restart` | 启动 / 停止 / 重启 systemd 服务 |
 | `fan-webssh uninstall [-y] [--purge\|--keep-data]` | 停止并移除服务/容器/进程，删除程序与安装记录，可选删除数据目录 |
 | `fan-webssh version` | 查看版本号 |
 
 ```shell
-# 查看服务状态
+# 查看服务状态（含版本号与访问地址）
 fan-webssh status
+
+# 查看登录用户名与初始密码
+sudo fan-webssh credentials
 
 # 免确认卸载，保留数据目录
 sudo fan-webssh uninstall -y

@@ -141,6 +141,7 @@ const updatePwd = async ({ res, request }) => {
   newPwd = SHA1Encrypt(await RSADecryptAsync(newPwd))
   keyObj.user = newLoginName
   keyObj.pwd = newPwd
+  keyObj.initPassword = '' // 密码已修改，清除初始密码
   await keyDB.updateAsync({ _id: keyObj._id }, { $set: keyObj })
   sendNoticeAsync('updatePwd', '用户密码修改提醒', `原用户名：${ user }\n更新用户名: ${ newLoginName }`)
   res.success({ data: true, msg: 'success' })

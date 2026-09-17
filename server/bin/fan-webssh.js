@@ -5,6 +5,7 @@
  * fan-webssh 内置 CLI 管理命令
  *
  *   fan-webssh status
+ *   fan-webssh credentials
  *   fan-webssh uninstall [-y|--yes] [--purge|--keep-data]
  *   fan-webssh start | stop | restart
  *   fan-webssh version | -version | --version | -v
@@ -14,6 +15,7 @@
  */
 
 const fs = require('fs')
+const os = require('os')
 const path = require('path')
 const readline = require('readline')
 const { execFileSync } = require('child_process')
@@ -65,7 +67,38 @@ function banner(title) {
    ██╔══╝  ██╔══██║██║╚██╗██║    ██║███╗██║██╔══╝  ██╔══██╗╚════██║╚════██║██╔══██║
    ██║     ██║  ██║██║ ╚████║    ╚███╔███╔╝███████╗██████╔╝███████║███████║██║  ██║
    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝     ╚══╝╚══╝ ╚══════╝╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝`, C.purple))
-  console.log(`${ paint(BIN_NAME, C.white) } — ${ paint(title, C.cyan) }\n`)
+  console.log(`${ paint(`${ BIN_NAME } v${ VERSION }`, C.white) } — ${ paint(title, C.cyan) }\n`)
+}
+
+// 非回环、非虚拟网桥的本机 IPv4 地址（与 fan-video 保持一致）
+function isVirtualInterface(name) {
+  return name === 'docker0' || name === 'docker_gwbridge' ||
+    name.startsWith('br-') || name.startsWith('veth') ||
+    name.startsWith('virbr') || name.startsWith('vnet') || name.startsWith('vmnet')
+}
+
+function localIPv4Addrs() {
+  const addrs = []
+  const ifaces = os.networkInterfaces()
+  for (const [name, list] of Object.entries(ifaces)) {
+    if (isVirtualInterface(name)) continue
+    for (const a of list || []) {
+      if (a.family === 'IPv4' && !a.internal && a.address) addrs.push(a.address)
+    }
+  }
+  return addrs
+}
+
+// 打印 Local / Network 访问地址
+function printAccess(port) {
+  const p = port || DEFAULT_PORT
+  kv('Local access', `http://localhost:${ p }`)
+  const ips = localIPv4Addrs()
+  if (!ips.length) {
+    kv('Network access', '未检测到局域网 IPv4 地址')
+    return
+  }
+  for (const ip of ips) kv('Network access', `http://${ ip }:${ p }`)
 }
 
 // ================== 通用工具 ==================
@@ -395,6 +428,7 @@ function cmdStatus() {
   section('网络')
   const lp = listenPort(pid, port)
   kv('监听端口', lp || '未找到')
+  printAccess(lp || port)
 
   section('运行时间')
   kv('已运行', formatUptime(procUptimeSec(pid)))
@@ -415,6 +449,97 @@ function cmdStatus() {
   kv('安装记录', RECORD_FILE)
   kv('Node 版本', process.version)
 
+  sep()
+  return 0
+}
+
+// ================== credentials ==================
+// 读取 NeDB 账号数据库（app/db/key.db，安装后为符号链接指向数据目录）
+function readKeyDoc(appDir) {
+  const file = path.join(appDir, 'app', 'db', 'key.db')
+  let content
+  try {
+    content = fs.readFileSync(file, 'utf8')
+  } catch (e) {
+    return { file, doc: null, error: e }
+  }
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    try {
+      const doc = JSON.parse(trimmed)
+      if (doc && doc.user) return { file, doc, error: null }
+    } catch {
+      // 跳过损坏行
+    }
+  }
+  return { file, doc: null, error: null }
+}
+
+// 从服务日志中提取首次初始化打印的用户名/密码（旧版本数据库无 initPassword 字段时回退）
+function scrapeCredentials(dataDir) {
+  let text = ''
+  try {
+    if (hasCmd('journalctl')) {
+      text = execFileSync('journalctl', ['-u', SERVICE_NAME, '--no-pager', '-n', '500'], { encoding: 'utf8' })
+    }
+  } catch {
+    text = ''
+  }
+  if (!text) {
+    try {
+      text = fs.readFileSync(path.join(dataDir, `${ APP_NAME }.log`), 'utf8')
+    } catch {
+      text = ''
+    }
+  }
+  const pick = marker => {
+    let val = ''
+    for (const line of text.split('\n')) {
+      const idx = line.indexOf(marker)
+      if (idx !== -1) val = line.slice(idx + marker.length)
+    }
+    return val.replace(/[║\s]+$/g, '').replace(/^[ \t]+/, '')
+  }
+  return { user: pick('用户名:'), pass: pick('密码:') }
+}
+
+function cmdCredentials() {
+  const { appDir, dataDir, port } = resolvePaths()
+  banner('登录凭据')
+  sep()
+  const { file, doc, error } = readKeyDoc(appDir)
+  if (error) {
+    err(`读取账号数据库失败：${ file }`)
+    console.log(paint(`  ${ error.code === 'EACCES' ? '请以 root 身份运行：sudo ' + BIN_NAME + ' credentials' : error.message }`, C.grey))
+    sep()
+    return 1
+  }
+  if (!doc) {
+    err(`未找到账号数据库：${ file }，请确认服务已安装并首次启动。`)
+    sep()
+    return 1
+  }
+  const username = doc.user || '未知'
+  let password = doc.initPassword || ''
+  let fromLog = false
+  // 仅当数据库完全没有该字段（旧版本）时才回退到日志，避免展示已失效的旧初始密码
+  if (!password && !Object.prototype.hasOwnProperty.call(doc, 'initPassword')) {
+    const scraped = scrapeCredentials(dataDir)
+    if (scraped.pass) {
+      password = scraped.pass
+      fromLog = true
+    }
+  }
+  kv('用户名', username)
+  if (password) {
+    kv('密码', password)
+    console.log(paint(fromLog ? '  来源：服务日志（旧版本数据，初始密码仅在首次启动打印一次）' : '  初始密码，登录后请及时修改（修改后将不再显示）', C.grey))
+  } else {
+    kv('密码', '已修改（初始密码不可再查询，请使用自定义密码登录）')
+  }
+  section('访问地址')
+  printAccess(port)
   sep()
   return 0
 }
@@ -612,7 +737,8 @@ function cmdService(action) {
 function cmdHelp() {
   banner('管理命令')
   const rows = [
-    ['status', '显示运行方式（systemd / Docker / 直接运行）、PID、端口、运行时长、内存、路径'],
+    ['status', '显示运行方式（systemd / Docker / 直接运行）、PID、端口、访问地址、运行时长、内存、路径'],
+    ['credentials', '显示登录用户名与初始密码（修改密码后不再显示）'],
     ['start | stop | restart', '启动 / 停止 / 重启 systemd 服务'],
     ['uninstall [-y] [--purge|--keep-data]', '停止并移除服务/容器/进程，删除程序与安装记录；可选删除数据目录'],
     ['version, -version, --version, -v', '显示版本号'],
@@ -621,10 +747,13 @@ function cmdHelp() {
   for (const [cmd, desc] of rows) {
     console.log(`  ${ paint(cmd.padEnd(38), C.white) } ${ paint(desc, C.grey) }`)
   }
+  section('访问地址')
+  printAccess(resolvePaths().port)
   console.log('')
   for (const line of [
     `  ${ paint('使用示例：', C.cyan) }`,
     `    ${ paint(`${ BIN_NAME } status`, C.green) }`,
+    `    ${ paint(`${ BIN_NAME } credentials`, C.green) }`,
     `    ${ paint(`sudo ${ BIN_NAME } uninstall -y            # 免确认卸载，保留数据目录`, C.green) }`,
     `    ${ paint(`sudo ${ BIN_NAME } uninstall -y --purge    # 免确认卸载，并删除数据目录`, C.green) }`
   ]) console.log(line)
@@ -646,6 +775,11 @@ async function main() {
   switch (sub) {
     case 'status':
       return cmdStatus()
+    case 'credentials':
+    case 'credential':
+    case 'password':
+    case 'pwd':
+      return cmdCredentials()
     case 'uninstall':
       return cmdUninstall(rest)
     case 'start':

@@ -486,13 +486,13 @@ print_initial_credentials() {
   local creds="" user="" pass="" source=""
   if [ "${USE_SYSTEMD}" = "y" ]; then
     command -v journalctl >/dev/null 2>&1 && \
-      creds="$(journalctl -u "${APP_NAME}" --no-pager -n 300 2>/dev/null | grep -E '用户名: |密码: ' | tail -n 2)"
+      creds="$(journalctl -u "${APP_NAME}" --no-pager -n 300 2>/dev/null | grep -E '用户名:|密码:' | tail -n 2)"
   fi
   if [ -z "${creds}" ] && [ -f "${DATA_DIR}/${APP_NAME}.log" ]; then
-    creds="$(grep -E '用户名: |密码: ' "${DATA_DIR}/${APP_NAME}.log" 2>/dev/null | tail -n 2)"
+    creds="$(grep -E '用户名:|密码:' "${DATA_DIR}/${APP_NAME}.log" 2>/dev/null | tail -n 2)"
   fi
-  user="$(printf '%s\n' "${creds}" | sed -n 's/.*用户名: //p' | tail -n 1 | tr -d '\r')"
-  pass="$(printf '%s\n' "${creds}" | sed -n 's/.*密码: //p' | tail -n 1 | tr -d '\r')"
+  user="$(printf '%s\n' "${creds}" | sed -n 's/.*用户名:[[:space:]]*//p' | tail -n 1 | sed 's/[[:space:]║]*$//' | tr -d '\r')"
+  pass="$(printf '%s\n' "${creds}" | sed -n 's/.*密码:[[:space:]]*//p' | tail -n 1 | sed 's/[[:space:]║]*$//' | tr -d '\r')"
   [ -n "${user}" ] && [ -n "${pass}" ] || return 1
   printf "  %s\n" "${gl_lv}✔ 首次登录凭据（请登录后立即修改）${reset}"
   printf "  %-14s %s\n" "${gl_lan}用户名${reset}" "${gl_bai}${user}${reset}"

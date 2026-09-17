@@ -33,6 +33,7 @@ async function initKeyDB() {
   let newConfig = {
     user: randomUsername,
     pwd: SHA1Encrypt(randomPassword),
+    initPassword: randomPassword, // 初始明文密码，供首次登录提示与 CLI 查询；修改密码后清空
     commonKey: randomStr(32),
     jwtToken: randomStr(32),
     publicKey: '',
@@ -47,12 +48,13 @@ async function initKeyDB() {
   newConfig.publicKey = publicKey // 公开公钥
   await keyDB.updateAsync({}, { $set: newConfig }, { upsert: true })
 
-  // 在控制台打印随机生成的账号密码
-  logger.info('========================================')
-  logger.info('Fan-WebSSH 默认登录凭据 (请及时更改):')
-  logger.info(`用户名: ${ randomUsername }`)
-  logger.info(`密码: ${ randomPassword }`)
-  logger.info('========================================')
+  // 在控制台打印随机生成的账号密码（仅首次初始化时输出一次）
+  logger.info('╔══════════════════════════════════════════════════════════╗')
+  logger.info('║  首次启动 — 已创建默认账号（初始密码为一次性随机值）       ║')
+  logger.info(`║  用户名: ${ randomUsername }`)
+  logger.info(`║  密码:   ${ randomPassword }`)
+  logger.info('║  ⚠️  请首次登录后及时修改密码（fan-webssh credentials 可查询） ║')
+  logger.info('╚══════════════════════════════════════════════════════════╝')
 
 }
 
