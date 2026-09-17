@@ -152,6 +152,33 @@ sudo fan-webssh uninstall -y
 sudo fan-webssh uninstall -y --purge
 ```
 
+### 备份与还原
+
+systemd 安装方式自带备份/还原脚本，脚本会自动读取 `/etc/fan-webssh.conf` 中的 `APP_DIR` / `DATA_DIR` / `BACKUP_DIR`，默认备份目录为 `${APP_DIR}/backup`。本仓库同名脚本位于 `scripts/` 目录，面板安装后在应用安装目录下亦有副本。
+
+```shell
+# 备份（在线打包、不停服，默认保留最近 6 份）
+bash scripts/fan-webssh_backup.sh
+
+# 指定备份目录与保留份数（两种传参顺序均可）
+bash scripts/fan-webssh_backup.sh /data/bak 8
+bash scripts/fan-webssh_backup.sh 8 /data/bak
+```
+
+```shell
+# 还原（默认取备份目录中最新一份；还原过程中面板服务会短暂停止并自动重启）
+bash scripts/fan-webssh_recover.sh
+
+# 指定备份目录与还原文件（文件名需形如 FanWebSSH-*.tar.gz）
+bash scripts/fan-webssh_recover.sh /data/bak FanWebSSH-2026-09-17_21-31-22.tar.gz
+```
+
+说明：
+
+- 备份产物为 `FanWebSSH-YYYY-MM-DD_HH-MM-SS.tar.gz`，只包含数据目录（`DATA_DIR`）内容。
+- 还原前请确认备份文件仍在对应 `BACKUP_DIR` 内，且数据目录路径与当前服务一致。
+- 上述命令需要在运行该面板的服务器上以 root 权限执行。
+
 ## 环境变量
 
 > 无特殊需求建议使用docker-compose.yml一键启动
