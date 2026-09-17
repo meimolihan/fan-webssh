@@ -10,6 +10,9 @@
 #   参数静默安装（-p 端口 / -d 数据目录 / -s 源码目录）:
 #     bash scripts/install.sh -p 8082 -d /var/lib/fan-webssh /data/fan-webssh.repo
 #     bash scripts/install.sh -p 8082 -d /var/lib/fan-webssh -s /tmp/fan-webssh
+#   预编译二进制安装（不需要 Node/git）:
+#     bash scripts/install.sh -p 8082 -b
+#     默认已优先使用二进制（auto）；不指定 -s 且本地无源码时自动下载预编译二进制
 #   国内网络可用镜像仓库:
 #     FAN_WEBSSH_REPO=https://ghfast.top/https://github.com/meimolihan/fan-webssh.git bash scripts/install.sh -y
 
@@ -71,6 +74,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-}")" && pwd)"
 DEFAULT_SRC_DIR="${SCRIPT_DIR}/.."
 MIN_NODE_MAJOR=18
 GITHUB_REPO="https://github.com/meimolihan/fan-webssh.git"
+GITHUB_BIN_REPO="meimolihan/fan-webssh"
 
 # 经 curl|bash 远程执行时，SCRIPT_DIR 指向 bash 抽取的临时目录，本地源码仓库
 # 需按常见目录回退探测（当前目录 / 上一级目录 / 上级的上级），否则会误判"无本地源码"。
@@ -135,19 +139,18 @@ while [ "$#" -gt 0 ]; do
     -y|--yes)
       INSTALL_YES=1
       ;;
-    -b|--binary)
-      BINARY_MODE="force"
-      ;;
     -h|--help)
       printf "%s\n" "${gl_lan}fan-webssh${reset} - ${gl_bai}多功能Linux服务器终端面板(webSSH&webSFTP) 安装脚本${reset}"
-      printf "  %-13s %s\n" "${gl_bai}用法:${reset}" "bash scripts/install.sh [-p PORT] [-d DATA_DIR] [-s SRC] [-y]"
+      printf "  %-13s %s\n" "${gl_bai}用法:${reset}" "bash scripts/install.sh [-p PORT] [-d DATA_DIR] [-s SRC] [-b] [-y]"
       printf "  %-13s %s\n" "${gl_bai}-p, --port${reset}" "监听端口（默认 ${gl_lan}${DEFAULT_PORT}${reset}）"
       printf "  %-13s %s\n" "${gl_bai}-d, --data${reset}" "数据目录（默认 ${gl_lan}${DEFAULT_DATA_DIR}${reset}）"
       printf "  %-13s %s\n" "${gl_bai}-s, --src${reset}" "源码仓库路径（默认 ${gl_lan}${DEFAULT_SRC_DIR}${reset}）"
+      printf "  %-13s %s\n" "${gl_bai}-b, --binary${reset}" "强制使用预编译二进制安装（无需 Node.js/git）"
       printf "  %-13s %s\n" "${gl_bai}-y, --yes${reset}" "免交互，未指定项全部使用默认值"
       printf "  %-13s %s\n" "${gl_bai}-h, --help${reset}" "显示本帮助"
       printf "%s\n" "${gl_hui}指定任意参数即进入静默安装；不带参数则为交互式安装。${reset}"
-      printf "%s\n" "${gl_hui}未指定 -s 且本地无源码仓库时，自动从 GitHub 克隆/下载最新源码进行编译安装。${reset}"
+      printf "%s\n" "${gl_hui}默认优先下载 GitHub Releases 预编译二进制（无需 Node/npm/git）；可用 FAN_WEBSSH_VERSION 指定版本号（默认 latest）。${reset}"
+      printf "%s\n" "${gl_hui}未指定 -b 且本地存在源码仓库（含 -s 显式指定）时，仍按源码编译安装。${reset}"
       printf "%s\n" "${gl_hui}国内网络可设 FAN_WEBSSH_REPO 自定义仓库或镜像地址，如 FAN_WEBSSH_REPO=https://ghfast.top/https://github.com/meimolihan/fan-webssh.git${reset}"
       printf "%s\n" "${gl_hui}首次运行的用户名/密码为随机生成，请查看服务日志：journalctl -u fan-webssh -n 50${reset}"
       exit 0
@@ -208,23 +211,143 @@ printf "  %-14s %s\n" "${gl_lan}系统${reset}" "$(uname -s) $(uname -m)"
 printf "  %-14s %s\n" "${gl_lan}程序${reset}" "${gl_bai}${APP_NAME}${reset}"
 sep_line
 
-# ---- 运行时依赖检查 ----
-if ! command -v node >/dev/null 2>&1; then
-  error "未检测到 Node.js，请先安装（要求 >= v${MIN_NODE_MAJOR}），例如：apt install nodejs npm / 或使用 nvm/官方安装包"
+# ---- Node 运行时检查（仅源码安装需要）----
+check_node_runtime() {
+  if ! command -v node >/dev/null 2>&1; then
+    error "未检测到 Node.js，请先安装（要求 >= v${MIN_NODE_MAJOR}），例如：apt install nodejs npm / 或使用 nvm/官方安装包"
+  fi
+  NODE_MAJOR="$(node -e 'console.log(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
+  if [ "${NODE_MAJOR}" -lt "${MIN_NODE_MAJOR}" ]; then
+    error "Node.js 版本过低（当前 $(node -v)），要求 >= v${MIN_NODE_MAJOR}"
+  fi
+  NPM_CMD="$(command -v npm || true)"
+  if [ -z "${NPM_CMD}" ]; then
+    error "未检测到 npm，Node.js 安装异常，请检查安装。"
+  fi
+  INSTALL_TOOL="npm"
+  if command -v yarn >/dev/null 2>&1; then
+    INSTALL_TOOL="yarn"
+  fi
+  ok "Node.js $(node -v) / 包管理器 ${gl_bai}${INSTALL_TOOL}${reset}"
+}
+
+# ---- 安装方式判定：二进制优先，可回退源码 ----
+INSTALL_METHOD="source"
+BIN_PATH="${APP_DIR}/fan-webssh"
+BIN_VER=""
+local_src="$(resolve_local_src)" || true
+if [ "${BINARY_MODE}" = "force" ]; then
+  INSTALL_METHOD="binary"
+elif [ "${SRC_DIR_EXPLICIT}" = "1" ]; then
+  INSTALL_METHOD="source"
+elif [ -n "${local_src}" ] && is_valid_src "${local_src}"; then
+  INSTALL_METHOD="source"
+elif [ -z "${PORT}" ] && [ "${INSTALL_YES}" != "1" ] && [ -t 0 ]; then
+  read -r -p "${gl_bai}安装方式${reset}: ${gl_hui}[1] 预编译二进制(无需Node) [2] 源码编译 [默认: 1]${reset} " METHOD_CHOICE
+  case "${METHOD_CHOICE}" in
+    2|2*) INSTALL_METHOD="source" ;;
+    *) INSTALL_METHOD="binary" ;;
+  esac
+else
+  INSTALL_METHOD="binary"
 fi
-NODE_MAJOR="$(node -e 'console.log(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
-if [ "${NODE_MAJOR}" -lt "${MIN_NODE_MAJOR}" ]; then
-  error "Node.js 版本过低（当前 $(node -v)），要求 >= v${MIN_NODE_MAJOR}"
+
+if [ "${INSTALL_METHOD}" = "binary" ]; then
+  ok "安装方式：${gl_lan}预编译二进制${reset}（单文件，无需 Node.js/npm/git）"
+else
+  ok "安装方式：${gl_lan}源码编译${reset}"
+  check_node_runtime
 fi
-NPM_CMD="$(command -v npm || true)"
-if [ -z "${NPM_CMD}" ]; then
-  error "未检测到 npm，Node.js 安装异常，请检查安装。"
-fi
-INSTALL_TOOL="npm"
-if command -v yarn >/dev/null 2>&1; then
-  INSTALL_TOOL="yarn"
-fi
-ok "Node.js $(node -v) / 包管理器 ${gl_bai}${INSTALL_TOOL}${reset}"
+
+# ---- 下载并部署预编译二进制（standalone 面板 + CLI，内置前端）----
+install_binary() {
+  local arch="" name="" tag="${FAN_WEBSSH_VERSION:-latest}" url_path="" tmp="" hdr="" magic="" url=""
+  case "$(uname -m)" in
+    x86_64|amd64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      printf "  %s\n" "${gl_huang}[警告]${reset} 架构 $(uname -m) 无预编译二进制（仅 amd64/arm64），请使用源码安装。"
+      return 1
+      ;;
+  esac
+  name="fan-webssh_linux_${arch}"
+  if [ "${tag}" = "latest" ]; then
+    url_path="releases/latest/download/${name}"
+  else
+    case "${tag}" in v*) ;; *) tag="v${tag}" ;; esac
+    url_path="releases/download/${tag}/${name}"
+  fi
+  BIN_VER="${tag}"
+  ok "下载预编译二进制 ${gl_bai}${name}${reset}（版本 ${gl_lan}${tag}${reset}）"
+
+  if command -v curl >/dev/null 2>&1; then
+    DL_CURL="y"
+  elif command -v wget >/dev/null 2>&1; then
+    DL_CURL="n"
+  else
+    printf "  %s\n" "${gl_huang}[警告]${reset} 未检测到 curl/wget，无法下载二进制。"
+    return 1
+  fi
+
+  tmp="$(mktemp)"
+  hdr="${tmp}.hdr"
+  local candidates=(
+    "https://github.com/${GITHUB_BIN_REPO}/${url_path}"
+    "https://git.221022.xyz/https://github.com/${GITHUB_BIN_REPO}/${url_path}"
+    "https://ghfast.top/https://github.com/${GITHUB_BIN_REPO}/${url_path}"
+  )
+  for url in "${candidates[@]}"; do
+    skip "尝试下载 ${gl_bai}${url}${reset}"
+    rm -f "${tmp}" "${hdr}"
+    DL_FAIL="n"
+    if [ "${DL_CURL}" = "y" ]; then
+      if command -v timeout >/dev/null 2>&1; then
+        timeout 300 curl -fsSL "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
+      else
+        curl -fsSL "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
+      fi
+    else
+      wget -qO "${tmp}" --timeout=300 "${url}" 2>/dev/null || DL_FAIL="y"
+    fi
+    if [ "${DL_FAIL}" = "y" ] || [ ! -s "${tmp}" ]; then
+      printf "  %s\n" "${gl_huang}[警告]${reset}" "下载失败：${url}"
+      continue
+    fi
+
+    # 大小核对：镜像/Cache 可能返回被截断的残缺文件（curl 认为传输正常）
+    if [ "${DL_CURL}" = "y" ] && [ -f "${hdr}" ]; then
+      expected="$(grep -i '^content-length:' "${hdr}" | tail -n 1 | tr -d '\r' | awk '{print $2}')"
+      actual="$(stat -c%s "${tmp}" 2>/dev/null || echo 0)"
+      if [ -n "${expected}" ] && [ "${actual}" != "${expected}" ]; then
+        printf "  %s\n" "${gl_huang}[警告]${reset} 文件不完整（${actual}/${expected} 字节），跳过该源。"
+        continue
+      fi
+    fi
+
+    magic="$(head -c4 "${tmp}" | od -An -tx1 | tr -d ' \n')"
+    if [ "${magic}" != "7f454c46" ]; then
+      printf "  %s\n" "${gl_huang}[警告]${reset} 下载内容不是可执行程序，跳过该源。"
+      continue
+    fi
+
+    # 运行自检：损坏/截断的 yao-pkg 快照在执行 version 时会报 Pkg 错误
+    chmod +x "${tmp}"
+    if ! "${tmp}" version >/dev/null 2>&1; then
+      printf "  %s\n" "${gl_huang}[警告]${reset} 二进制自检失败（损坏或非 yao-pkg 快照），跳过该源。"
+      continue
+    fi
+
+    mkdir -p "${APP_DIR}"
+    cp -f "${tmp}" "${BIN_PATH}"
+    chmod +x "${BIN_PATH}"
+    rm -f "${tmp}" "${hdr}"
+    ok "二进制已安装至 ${gl_bai}${BIN_PATH}${reset}"
+    return 0
+  done
+  rm -f "${tmp}" "${hdr}"
+  printf "  %s\n" "${gl_huang}[警告]${reset} 所有源均下载失败/校验未通过，回退源码安装。"
+  return 1
+}
 
 # ---- silent install detection ----
 SILENT="n"
@@ -281,88 +404,101 @@ else
 fi
 DATA_DIR="${DATA_DIR:-$DEFAULT_DATA_DIR}"
 
-# source repo
-SRC_DIR="${SRC_DIR:-$DEFAULT_SRC_DIR}"
-if ! is_valid_src "${SRC_DIR}"; then
-  if [ "${SRC_DIR_EXPLICIT}" != "1" ]; then
-    DISCOVERED_SRC="$(resolve_local_src)" || true
-    if [ -n "${DISCOVERED_SRC:-}" ]; then
-      ok "已从仓库目录发现本地源码 ${gl_bai}${DISCOVERED_SRC}${reset}"
-      SRC_DIR="${DISCOVERED_SRC}"
+# source repo / binary install
+if [ "${INSTALL_METHOD}" = "binary" ]; then
+  if ! install_binary; then
+    if [ "${BINARY_MODE}" = "force" ]; then
+      error "二进制安装失败（-b 强制二进制模式），可用 -s 指定源码目录重新安装"
     fi
+    printf "  %s\n" "${gl_huang}[警告]${reset} 预编译二进制获取失败，回退为源码编译安装。"
+    INSTALL_METHOD="source"
+    check_node_runtime
   fi
 fi
-if ! is_valid_src "${SRC_DIR}"; then
-  if [ "${SRC_DIR_EXPLICIT}" = "1" ]; then
-    error "未找到源码仓库 ${SRC_DIR}（-s 显式指定，需包含 server/ 与 web/ 目录）"
-  fi
-  ok "本地无源码仓库，尝试获取源码（可用环境变量 FAN_WEBSSH_REPO 自定义仓库地址）"
-  TMP_ROOT="$(mktemp -d)"
-  TMP_SRC="${TMP_ROOT}/fan-webssh"
 
-  # 候选仓库源：自定义 > GitHub 加速代理 > GitHub 主站（国内直连 GitHub 常超时）
-  REPO_CANDIDATES=(
-    "${FAN_WEBSSH_REPO:-}"
-    "https://git.221022.xyz/${GITHUB_REPO}"
-    "https://ghfast.top/${GITHUB_REPO}"
-    "${GITHUB_REPO}"
-  )
-
-  FETCHED="n"
-  if command -v timeout >/dev/null 2>&1; then CLONE_TIMEOUT="timeout 90"; else CLONE_TIMEOUT=""; fi
-
-  if command -v git >/dev/null 2>&1; then
-    for repo in "${REPO_CANDIDATES[@]}"; do
-      [ -n "${repo}" ] || continue
-      skip "尝试 git clone ${gl_bai}${repo}${reset}"
-      if ${CLONE_TIMEOUT} git clone --depth=1 "${repo}" "${TMP_SRC}" 2>"${TMP_ROOT}/clone.err"; then
-        FETCHED="y"
-        break
+if [ "${INSTALL_METHOD}" = "source" ]; then
+  SRC_DIR="${SRC_DIR:-$DEFAULT_SRC_DIR}"
+  if ! is_valid_src "${SRC_DIR}"; then
+    if [ "${SRC_DIR_EXPLICIT}" != "1" ]; then
+      DISCOVERED_SRC="$(resolve_local_src)" || true
+      if [ -n "${DISCOVERED_SRC:-}" ]; then
+        ok "已从仓库目录发现本地源码 ${gl_bai}${DISCOVERED_SRC}${reset}"
+        SRC_DIR="${DISCOVERED_SRC}"
       fi
-      printf "  %s %s\n" "${gl_huang}[警告]${reset}" "克隆失败：$(tail -n 1 "${TMP_ROOT}/clone.err" 2>/dev/null)"
-      rm -rf "${TMP_SRC}"
-    done
-  else
-    printf "  %s %s\n" "${gl_huang}[警告]${reset}" "未检测到 git，跳过 git clone，改用源码压缩包"
-  fi
-
-  # 回退：下载源码压缩包并解压（无需 git，走与脚本下载一致的加速线路）
-  if [ "${FETCHED}" != "y" ]; then
-    ARCHIVE_URLS=(
-      "https://git.221022.xyz/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
-      "https://ghfast.top/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
-      "https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
-      "https://codeload.github.com/meimolihan/fan-webssh/tar.gz/refs/heads/main"
-    )
-    if command -v curl >/dev/null 2>&1; then
-      DL_CMD="curl -fsSL"
-    elif command -v wget >/dev/null 2>&1; then
-      DL_CMD="wget -qO-"
-    else
-      DL_CMD=""
     fi
-    for url in "${ARCHIVE_URLS[@]}"; do
-      [ -n "${url}" ] || continue
-      [ -n "${DL_CMD}" ] || break
-      skip "尝试下载源码包 ${gl_bai}${url}${reset}"
-      TMP_TGZ="${TMP_ROOT}/src.tar.gz"
-      if ${DL_CMD} "${url}" > "${TMP_TGZ}" 2>/dev/null \
-        && tar -xzf "${TMP_TGZ}" -C "${TMP_ROOT}" 2>/dev/null; then
-        EXTRACTED="$(find "${TMP_ROOT}" -maxdepth 1 -type d -name 'fan-webssh-*' -print -quit 2>/dev/null)"
-        if [ -n "${EXTRACTED}" ]; then
-          mv "${EXTRACTED}" "${TMP_SRC}"
+  fi
+  if ! is_valid_src "${SRC_DIR}"; then
+    if [ "${SRC_DIR_EXPLICIT}" = "1" ]; then
+      error "未找到源码仓库 ${SRC_DIR}（-s 显式指定，需包含 server/ 与 web/ 目录）"
+    fi
+    ok "本地无源码仓库，尝试获取源码（可用环境变量 FAN_WEBSSH_REPO 自定义仓库地址）"
+    TMP_ROOT="$(mktemp -d)"
+    TMP_SRC="${TMP_ROOT}/fan-webssh"
+
+    # 候选仓库源：自定义 > GitHub 加速代理 > GitHub 主站（国内直连 GitHub 常超时）
+    REPO_CANDIDATES=(
+      "${FAN_WEBSSH_REPO:-}"
+      "https://git.221022.xyz/${GITHUB_REPO}"
+      "https://ghfast.top/${GITHUB_REPO}"
+      "${GITHUB_REPO}"
+    )
+
+    FETCHED="n"
+    if command -v timeout >/dev/null 2>&1; then CLONE_TIMEOUT="timeout 90"; else CLONE_TIMEOUT=""; fi
+
+    if command -v git >/dev/null 2>&1; then
+      for repo in "${REPO_CANDIDATES[@]}"; do
+        [ -n "${repo}" ] || continue
+        skip "尝试 git clone ${gl_bai}${repo}${reset}"
+        if ${CLONE_TIMEOUT} git clone --depth=1 "${repo}" "${TMP_SRC}" 2>"${TMP_ROOT}/clone.err"; then
           FETCHED="y"
           break
         fi
-      fi
-      printf "  %s %s\n" "${gl_huang}[警告]${reset}" "下载失败：${url}"
-      rm -f "${TMP_TGZ}"
-    done
-  fi
+        printf "  %s %s\n" "${gl_huang}[警告]${reset}" "克隆失败：$(tail -n 1 "${TMP_ROOT}/clone.err" 2>/dev/null)"
+        rm -rf "${TMP_SRC}"
+      done
+    else
+      printf "  %s %s\n" "${gl_huang}[警告]${reset}" "未检测到 git，跳过 git clone，改用源码压缩包"
+    fi
 
-  [ "${FETCHED}" = "y" ] || error "获取源码仓库失败，请检查服务器网络，或使用 -s 指定本地源码目录"
-  SRC_DIR="${TMP_SRC}"
-  ok "已获取源码仓库"
+    # 回退：下载源码压缩包并解压（无需 git，走与脚本下载一致的加速线路）
+    if [ "${FETCHED}" != "y" ]; then
+      ARCHIVE_URLS=(
+        "https://git.221022.xyz/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
+        "https://ghfast.top/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
+        "https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
+        "https://codeload.github.com/meimolihan/fan-webssh/tar.gz/refs/heads/main"
+      )
+      if command -v curl >/dev/null 2>&1; then
+        DL_CMD="curl -fsSL"
+      elif command -v wget >/dev/null 2>&1; then
+        DL_CMD="wget -qO-"
+      else
+        DL_CMD=""
+      fi
+      for url in "${ARCHIVE_URLS[@]}"; do
+        [ -n "${url}" ] || continue
+        [ -n "${DL_CMD}" ] || break
+        skip "尝试下载源码包 ${gl_bai}${url}${reset}"
+        TMP_TGZ="${TMP_ROOT}/src.tar.gz"
+        if ${DL_CMD} "${url}" > "${TMP_TGZ}" 2>/dev/null \
+          && tar -xzf "${TMP_TGZ}" -C "${TMP_ROOT}" 2>/dev/null; then
+          EXTRACTED="$(find "${TMP_ROOT}" -maxdepth 1 -type d -name 'fan-webssh-*' -print -quit 2>/dev/null)"
+          if [ -n "${EXTRACTED}" ]; then
+            mv "${EXTRACTED}" "${TMP_SRC}"
+            FETCHED="y"
+            break
+          fi
+        fi
+        printf "  %s %s\n" "${gl_huang}[警告]${reset}" "下载失败：${url}"
+        rm -f "${TMP_TGZ}"
+      done
+    fi
+
+    [ "${FETCHED}" = "y" ] || error "获取源码仓库失败，请检查服务器网络，或使用 -s 指定本地源码目录"
+    SRC_DIR="${TMP_SRC}"
+    ok "已获取源码仓库"
+  fi
 fi
 
 if command -v systemctl >/dev/null 2>&1; then
@@ -377,42 +513,47 @@ sep_line
 section "安装程序"
 ok "正在安装 ${gl_bai}${APP_NAME}${reset} 程序 ${gl_hong}.${gl_huang}.${gl_lv}.${gl_bai}"
 
-# 1) 拷贝 server 源码到安装目录
-mkdir -p "${APP_DIR}"
-rm -f "${APP_DIR}/app/db"
-cp -rf "${SRC_DIR}/server/." "${APP_DIR}/"
-rm -f "${APP_DIR}/.env"
-ok "已拷贝服务端源码至 ${gl_bai}${APP_DIR}${reset}"
-
-# 1.1) 拷贝运维脚本（备份/还原脚本供面板"服务管理"调用，也便于手动执行）
-if [ -d "${SRC_DIR}/scripts" ]; then
-  mkdir -p "${APP_DIR}/scripts"
-  cp -rf "${SRC_DIR}/scripts/." "${APP_DIR}/scripts/"
-  chmod +x "${APP_DIR}"/scripts/*.sh 2>/dev/null || true
-  ok "已部署运维脚本至 ${gl_bai}${APP_DIR}/scripts${reset}"
-fi
-
-# 2) 安装服务端生产依赖
-ok "正在安装服务端依赖（${INSTALL_TOOL}） ${gl_hong}.${gl_huang}.${gl_lv}.${gl_bai}"
-if [ "${INSTALL_TOOL}" = "yarn" ]; then
-  ( cd "${APP_DIR}" && yarn install --production --non-interactive >/dev/null )
+if [ "${INSTALL_METHOD}" = "binary" ]; then
+  ok "使用预编译二进制：${gl_bai}${BIN_PATH}${reset}（版本 ${gl_lan}${BIN_VER}${reset}）"
 else
-  ( cd "${APP_DIR}" && npm install --omit=dev --no-audit --no-fund >/dev/null )
-fi
-ok "服务端依赖安装完成"
+  # 1) 拷贝 server 源码到安装目录
+  mkdir -p "${APP_DIR}"
+  rm -f "${APP_DIR}/app/db"
+  cp -rf "${SRC_DIR}/server/." "${APP_DIR}/"
+  rm -f "${APP_DIR}/.env"
+  ok "已拷贝服务端源码至 ${gl_bai}${APP_DIR}${reset}"
 
-# 3) 构建 web 前端
-ok "正在构建 web 前端 ${gl_hong}.${gl_huang}.${gl_lv}.${gl_bai}"
-if [ "${INSTALL_TOOL}" = "yarn" ]; then
-  ( cd "${SRC_DIR}/web" && yarn install --non-interactive >/dev/null && yarn build >/dev/null )
-else
-  ( cd "${SRC_DIR}/web" && npm install --no-audit --no-fund >/dev/null && npm run build >/dev/null )
+  # 1.1) 拷贝运维脚本（备份/还原脚本供面板"服务管理"调用，也便于手动执行）
+  if [ -d "${SRC_DIR}/scripts" ]; then
+    mkdir -p "${APP_DIR}/scripts"
+    cp -rf "${SRC_DIR}/scripts/." "${APP_DIR}/scripts/"
+    chmod +x "${APP_DIR}"/scripts/*.sh 2>/dev/null || true
+    ok "已部署运维脚本至 ${gl_bai}${APP_DIR}/scripts${reset}"
+  fi
+
+  # 2) 安装服务端生产依赖
+  ok "正在安装服务端依赖（${INSTALL_TOOL}） ${gl_hong}.${gl_huang}.${gl_lv}.${gl_bai}"
+  if [ "${INSTALL_TOOL}" = "yarn" ]; then
+    ( cd "${APP_DIR}" && yarn install --production --non-interactive >/dev/null )
+  else
+    ( cd "${APP_DIR}" && npm install --omit=dev --no-audit --no-fund >/dev/null )
+  fi
+  ok "服务端依赖安装完成"
+
+  # 3) 构建 web 前端
+  ok "正在构建 web 前端 ${gl_hong}.${gl_huang}.${gl_lv}.${gl_bai}"
+  if [ "${INSTALL_TOOL}" = "yarn" ]; then
+    ( cd "${SRC_DIR}/web" && yarn install --non-interactive >/dev/null && yarn build >/dev/null )
+  else
+    ( cd "${SRC_DIR}/web" && npm install --no-audit --no-fund >/dev/null && npm run build >/dev/null )
+  fi
+  mkdir -p "${APP_DIR}/app/static"
+  cp -rf "${SRC_DIR}/web/dist/." "${APP_DIR}/app/static/"
+  ok "前端构建完成，已部署至 ${gl_bai}${APP_DIR}/app/static${reset}"
 fi
-mkdir -p "${APP_DIR}/app/static"
-cp -rf "${SRC_DIR}/web/dist/." "${APP_DIR}/app/static/"
-ok "前端构建完成，已部署至 ${gl_bai}${APP_DIR}/app/static${reset}"
 
 # 4) 数据目录 & 软链接（数据与程序分离，便于备份/还原）
+mkdir -p "${APP_DIR}/app"
 rm -rf "${APP_DIR}/app/db"
 mkdir -p "${DATA_DIR}"
 ln -s "${DATA_DIR}" "${APP_DIR}/app/db"
@@ -421,28 +562,51 @@ ok "数据目录 ${gl_lan}${DATA_DIR}${reset} 已就绪（app/db 软链至数据
 
 # 5) 安装记录
 mkdir -p "$(dirname "${CONFIG_FILE}")"
-cat > "${CONFIG_FILE}" <<EOF
+if [ "${INSTALL_METHOD}" = "binary" ]; then
+  cat > "${CONFIG_FILE}" <<EOF
 # ${APP_NAME} 安装记录（由 install.sh 生成，请勿手动修改）
 APP_DIR=${APP_DIR}
 PORT=${PORT}
 DATA_DIR=${DATA_DIR}
+INSTALL_METHOD=binary
+BIN_PATH=${BIN_PATH}
+VERSION=${BIN_VER}
+EOF
+else
+  cat > "${CONFIG_FILE}" <<EOF
+# ${APP_NAME} 安装记录（由 install.sh 生成，请勿手动修改）
+APP_DIR=${APP_DIR}
+PORT=${PORT}
+DATA_DIR=${DATA_DIR}
+INSTALL_METHOD=source
 NODE_BIN=$(command -v node)
 EOF
+fi
 chmod 0644 "${CONFIG_FILE}"
 ok "已写入安装记录 ${gl_bai}${CONFIG_FILE}${reset}"
 
 # 6) 安装内置 CLI 命令
 mkdir -p "$(dirname "${CLI_BIN}")"
-cat > "${CLI_BIN}" <<CLI
+if [ "${INSTALL_METHOD}" = "binary" ]; then
+  rm -f "${CLI_BIN}"
+  ln -s "${BIN_PATH}" "${CLI_BIN}"
+else
+  cat > "${CLI_BIN}" <<CLI
 #!/bin/sh
 exec "$(command -v node)" "${APP_DIR}/bin/fan-webssh.js" "\$@"
 CLI
-chmod +x "${CLI_BIN}"
+  chmod +x "${CLI_BIN}"
+fi
 ok "已安装命令 ${gl_bai}${CLI_BIN}${reset}（运行 ${gl_bai}${APP_NAME} help${reset} 查看用法）"
 
 sep_line
 section "启动服务"
 if [ "${USE_SYSTEMD}" = "y" ]; then
+  if [ "${INSTALL_METHOD}" = "binary" ]; then
+    EXEC_START="${BIN_PATH}"
+  else
+    EXEC_START="$(command -v node) ${APP_DIR}/index.js"
+  fi
   cat > "${SERVICE_FILE}" <<UNIT
 [Unit]
 Description=${APP_NAME} - 多功能Linux服务器终端面板(webSSH&webSFTP)
@@ -451,7 +615,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=$(command -v node) ${APP_DIR}/index.js
+ExecStart=${EXEC_START}
 WorkingDirectory=${APP_DIR}
 Environment=HTTP_PORT=${PORT}
 Environment=DEBUG=true
@@ -477,14 +641,21 @@ UNIT
     exit 1
   fi
 else
-  if command -v pgrep >/dev/null 2>&1 && pgrep -f "${APP_DIR}/index.js" >/dev/null 2>&1; then
+  if [ "${INSTALL_METHOD}" = "binary" ]; then
+    PROC_PATTERN="${BIN_PATH}"
+    RUN_CMD=("${BIN_PATH}")
+  else
+    PROC_PATTERN="${APP_DIR}/index.js"
+    RUN_CMD=(node "${APP_DIR}/index.js")
+  fi
+  if command -v pgrep >/dev/null 2>&1 && pgrep -f "${PROC_PATTERN}" >/dev/null 2>&1; then
     printf "  %s\n" "${gl_huang}[警告]${reset} 检测到 ${APP_NAME} 进程可能已在运行"
   else
     env HTTP_PORT="${PORT}" \
         DEBUG=true \
         GUACD_HOST=127.0.0.1 \
         GUACD_PORT=4822 \
-        nohup node "${APP_DIR}/index.js" >> "${DATA_DIR}/${APP_NAME}.log" 2>&1 &
+        nohup "${RUN_CMD[@]}" >> "${DATA_DIR}/${APP_NAME}.log" 2>&1 &
     ok "${APP_NAME} 已在后台启动，pid: ${gl_bai}$!${reset}"
   fi
 fi
@@ -520,12 +691,18 @@ else
   FW_STATUS="${gl_huang}未检测到活跃防火墙，已跳过${reset}"
 fi
 
+if [ "${INSTALL_METHOD}" = "binary" ]; then
+  METHOD_LABEL="预编译二进制 v${BIN_VER#v}"
+else
+  METHOD_LABEL="源码编译"
+fi
 sep_line
 if [ "${USE_SYSTEMD}" = "y" ]; then
   printf "  %s\n" "${gl_lv}✔ ${APP_NAME} 安装成功！${reset}"
   printf "  %-14s %s\n" "${gl_lan}访问地址${reset}" "${gl_bai}http://${IP}:${PORT}${reset}"
   printf "  %-14s %s\n" "${gl_lan}数据目录${reset}" "${gl_bai}${DATA_DIR}${reset}"
   printf "  %-14s %s\n" "${gl_lan}程序目录${reset}" "${gl_bai}${APP_DIR}${reset}"
+  printf "  %-14s %s\n" "${gl_lan}安装方式${reset}" "${gl_bai}${METHOD_LABEL}${reset}"
   printf "  %-14s %s\n" "${gl_lan}防火墙状态${reset}" "$FW_STATUS"
   printf "  %-14s %s\n" "${gl_lan}运行模式${reset}" "${gl_bai}systemd 服务${reset}"
   printf "  %-14s %s\n" "${gl_lan}服务命令${reset}" "${gl_hui}systemctl status ${APP_NAME}${reset}"
@@ -535,6 +712,7 @@ else
   printf "  %-14s %s\n" "${gl_lan}访问地址${reset}" "${gl_bai}http://${IP}:${PORT}${reset}"
   printf "  %-14s %s\n" "${gl_lan}数据目录${reset}" "${gl_bai}${DATA_DIR}${reset}"
   printf "  %-14s %s\n" "${gl_lan}程序目录${reset}" "${gl_bai}${APP_DIR}${reset}"
+  printf "  %-14s %s\n" "${gl_lan}安装方式${reset}" "${gl_bai}${METHOD_LABEL}${reset}"
   printf "  %s\n" "  ${gl_huang}注意：${reset}后台运行模式在系统重启后不会自动恢复。"
 fi
 
