@@ -176,7 +176,7 @@ const importVisible = ref(false)
 
 const handleExport = () => {
   if (!scriptList.value.length) return $message.warning('暂无可导出的脚本')
-  const fileName = `easynode-scripts-${ $tools.formatTimestamp(Date.now(), 'time', '.') }.json`
+  const fileName = `fan-webssh-scripts-${ $tools.formatTimestamp(Date.now(), 'time', '.') }.json`
   exportFile(scriptList.value, fileName, 'application/json')
 }
 

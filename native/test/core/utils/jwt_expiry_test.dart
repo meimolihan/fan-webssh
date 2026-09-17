@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:easynode_native/core/utils/jwt_expiry.dart';
+import 'package:fan-webssh_native/core/utils/jwt_expiry.dart';
 
 void main() {
   test('maps three days and seven days', () {

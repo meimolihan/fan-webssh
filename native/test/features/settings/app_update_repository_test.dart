@@ -1,12 +1,12 @@
-import 'package:easynode_native/features/settings/app_update_repository.dart';
+import 'package:fan-webssh_native/features/settings/app_update_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 void main() {
   test('nativeVersionFromPackage prefixes the app version', () {
     final packageInfo = PackageInfo(
-      appName: 'EasyNode',
-      packageName: 'io.github.chaoszhu.easynode',
+      appName: 'Fan-WebSSH',
+      packageName: 'io.github.meimolihan.fanwebssh',
       version: '0.1.0-beta.1',
       buildNumber: '2',
     );

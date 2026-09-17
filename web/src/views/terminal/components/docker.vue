@@ -682,13 +682,13 @@ const handleBatchDelete = () => {
   }).catch(() => {})
 }
 // ------ 图标处理逻辑 ------
-const ICON_BASE_URL = 'https://easynode-apps-icon.221022.xyz/images/'
+const ICON_BASE_URL = 'https://fan-webssh-apps-icon.221022.xyz/images/'
 const FALLBACK_ICON = `${ ICON_BASE_URL }docker.png`
 
 const getAppIcon = (imageName) => {
   if (!imageName) return FALLBACK_ICON
   try {
-    // 1. 获取最后一个斜杠后的部分 (处理 registry/namespace，如 chaoszhu/easynode -> easynode)
+    // 1. 获取最后一个斜杠后的部分 (处理 registry/namespace，如 meimolihan/fan-webssh -> fan-webssh)
     const nameWithTag = imageName.split('/').pop()
     // 2. 去除 tag (处理 :latest 等)
     const name = nameWithTag.split(':')[0]

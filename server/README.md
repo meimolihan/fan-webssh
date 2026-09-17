@@ -43,6 +43,6 @@ HTTPS_PORT=8092
 
 ## 客户端
 
-> **构建客户端服务, 后台运行** `nohup ./easynode-server &`
+> **构建客户端服务, 后台运行** `nohup ./fan-webssh-server &`
 
 > 功能：服务器基本信息【ssh信息保存在主服务器】

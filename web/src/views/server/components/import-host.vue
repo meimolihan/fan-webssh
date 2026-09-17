@@ -41,7 +41,7 @@
       </li>
       <li @click="handleFromJson(true)">
         <svg-icon name="icon-json" class="icon" />
-        <span class="from">EasyNode</span>
+        <span class="from">Fan-WebSSH</span>
         <span class="type">(json)</span>
       </li>
     </ul>
@@ -74,11 +74,11 @@ function handleFromCsv() {
   csvInputRef.value.click()
 }
 
-let isEasyNodeJson = ref(false)
+let isFanWebsshJson = ref(false)
 
 function handleFromJson(isENJson) {
-  isEasyNodeJson.value = isENJson
-  // console.log('isEasyNodeJson:', isEasyNodeJson.value)
+  isFanWebsshJson.value = isENJson
+  // console.log('isFanWebsshJson:', isFanWebsshJson.value)
   jsonInputRef.value.click()
 }
 
@@ -157,7 +157,7 @@ const handleJsonFile = (event) => {
   Promise.all(readerPromises)
     .then(jsonContents => {
       let formatJson = jsonContents.flat(Infinity)
-      if (!isEasyNodeJson.value) {
+      if (!isFanWebsshJson.value) {
         formatJson = formatJson.map(item => {
           const { name, host, port, user_name: username } = item
           return { name, host, port, username }
@@ -177,7 +177,7 @@ const handleJsonFile = (event) => {
 async function handleImportHost(importHost) {
   // console.log('导入: ', importHost)
   try {
-    let { data: { len } } = await $api.importHost({ importHost, isEasyNodeJson: isEasyNodeJson.value })
+    let { data: { len } } = await $api.importHost({ importHost, isFanWebsshJson: isFanWebsshJson.value })
     $message({ type: 'success', center: true, message: `成功导入实例: ${ len }台` })
     emit('update-list')
     visible.value = false

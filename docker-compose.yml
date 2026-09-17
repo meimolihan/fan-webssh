@@ -1,13 +1,13 @@
 services:
-   easynode:
+   fan-webssh:
       build: .
-      container_name: easynode
-      image: mobufan/easynode:latest
+      container_name: fan-webssh
+      image: mobufan/fan-webssh:latest
       restart: always
       ports:
          - 8082:8082
       volumes:
-         - ./easynode/db:/easynode/app/db
+         - ./fan-webssh/db:/fan-webssh/app/db
          - /var/run/docker.sock:/var/run/docker.sock:ro
       environment:
          - GUACD_PORT=4822

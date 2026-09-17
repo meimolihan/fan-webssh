@@ -5,7 +5,7 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    final app = await EasyNodeApp.bootstrap();
+    final app = await FanWebsshApp.bootstrap();
     runApp(app);
   } catch (e, s) {
     runApp(

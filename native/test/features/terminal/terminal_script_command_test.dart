@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:easynode_native/features/terminal/terminal_script_command.dart';
+import 'package:fan-webssh_native/features/terminal/terminal_script_command.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -15,7 +15,7 @@ void main() {
     );
 
     expect(command, endsWith('\n'));
-    expect(command, contains('mktemp /tmp/easynode-script-XXXXXX.sh'));
+    expect(command, contains('mktemp /tmp/fan-webssh-script-XXXXXX.sh'));
     expect(command, contains('base64 -d > "\$tmp_script"'));
     expect(command, contains('bash "\$tmp_script"'));
     expect(command, contains('rm -f "\$tmp_script"'));

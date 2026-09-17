@@ -3,7 +3,7 @@
 /// table when a key is missing in another locale.
 const Map<String, String> stringsEn = {
   // App
-  'app.title': 'EasyNode',
+  'app.title': 'Fan-WebSSH',
   'app.subtitle': 'Native terminal access',
 
   // Common

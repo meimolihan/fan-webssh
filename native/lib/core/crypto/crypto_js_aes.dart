@@ -6,7 +6,7 @@ import 'package:pointycastle/export.dart';
 
 /// Encrypts like `CryptoJS.AES.encrypt(text, passphrase).toString()`.
 ///
-/// EasyNode's web form submits secrets in CryptoJS' OpenSSL-compatible
+/// Fan-WebSSH's web form submits secrets in CryptoJS' OpenSSL-compatible
 /// passphrase format: base64("Salted__" + 8-byte salt + AES-CBC ciphertext).
 String encryptCryptoJsAes(String plaintext, String passphrase, {Random? random}) {
   final rng = random ?? Random.secure();

@@ -7,10 +7,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/utils/app_store_compliance.dart';
 
 const nativeVersionFeedUrl =
-    'https://easynode-version.chaoszhu.com/chaos-zhu/easynode/refs/heads/main/server/version.json';
+    'https://raw.githubusercontent.com/meimolihan/fan-webssh/main/server/version.json';
 const nativeVersionFeedFallbackUrl =
-    'https://raw.githubusercontent.com/chaos-zhu/easynode/refs/heads/main/server/version.json';
-const nativeGitHubReleaseUrl = 'https://github.com/chaos-zhu/easynode/releases';
+    'https://raw.githubusercontent.com/meimolihan/fan-webssh/main/server/version.json';
+const nativeGitHubReleaseUrl = 'https://github.com/meimolihan/fan-webssh/releases';
 const nativeIosReleaseUrl = '';
 const nativeOhosReleaseUrl = '';
 

@@ -4,7 +4,7 @@ import '../core/api/cookie_store.dart';
 import '../core/storage/app_storage.dart';
 import '../core/storage/secure_storage.dart';
 
-/// All four storage providers are bootstrap-only — `EasyNodeApp.bootstrap`
+/// All four storage providers are bootstrap-only — `FanWebsshApp.bootstrap`
 /// constructs the concrete instances once and overrides them on the root
 /// `ProviderScope`, so reads always succeed without async work.
 final appStorageProvider = Provider<AppStorage>((ref) {

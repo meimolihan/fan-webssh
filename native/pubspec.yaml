@@ -1,5 +1,5 @@
-name: easynode_native
-description: "EasyNode native app."
+name: fan_webssh_native
+description: "Fan-WebSSH native app."
 publish_to: 'none'
 version: 1.1.0+3
 

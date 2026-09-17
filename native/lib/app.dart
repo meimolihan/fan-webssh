@@ -23,7 +23,7 @@ import 'state/locale_notifier.dart';
 import 'state/storage_providers.dart';
 import 'state/theme_mode_notifier.dart';
 
-/// Bootstrap result. Wraps the values [EasyNodeApp] needs to install on the
+/// Bootstrap result. Wraps the values [FanWebsshApp] needs to install on the
 /// root [ProviderScope]. Building these synchronously up front keeps the
 /// providers free of async initialization and lets storage be read in
 /// `build` without futures.
@@ -47,8 +47,8 @@ class _Bootstrap {
   final AuthState initialAuthState;
 }
 
-class EasyNodeApp extends StatelessWidget {
-  const EasyNodeApp._({required _Bootstrap bootstrap}) : _b = bootstrap;
+class FanWebsshApp extends StatelessWidget {
+  const FanWebsshApp._({required _Bootstrap bootstrap}) : _b = bootstrap;
 
   final _Bootstrap _b;
 
@@ -113,7 +113,7 @@ class EasyNodeApp extends StatelessWidget {
       }
     }
 
-    return EasyNodeApp._(
+    return FanWebsshApp._(
       bootstrap: _Bootstrap(
         appStorage: appStorage,
         secureStorage: secureWrapper,
@@ -258,7 +258,7 @@ class _AppRootState extends ConsumerState<_AppRoot> {
     }
 
     return MaterialApp(
-      title: 'EasyNode',
+      title: 'Fan-WebSSH',
       debugShowCheckedModeBanner: false,
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _messengerKey,
@@ -445,7 +445,7 @@ class _BrandedSplash extends StatelessWidget {
                   child: FadeTransition(
                     opacity: logoFade,
                     child: Text(
-                      'EasyNode',
+                      'Fan-WebSSH',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: colors.onSurface,

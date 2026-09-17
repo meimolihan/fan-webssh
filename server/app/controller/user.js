@@ -27,12 +27,12 @@ const getpublicKey = async ({ res }) => {
 }
 
 const parseLoginAgentInfo = (userAgent = '') => {
-  const nativeMatch = userAgent.match(/^EasyNode-(Android|iOS|macOS|Windows|Linux|Native)\/(\S+)\s*(?:\(([^)]*)\))?/)
+  const nativeMatch = userAgent.match(/^FanWebSSH-(Android|iOS|macOS|Windows|Linux|Native)\/(\S+)\s*(?:\(([^)]*)\))?/)
   if (nativeMatch) {
     const [, clientName, appVersion, parenContent = ''] = nativeMatch
     const parts = parenContent.split(';').map(s => s.trim()).filter(Boolean)
     return {
-      browser: { name: `EasyNode ${ clientName }`, version: appVersion || '' },
+      browser: { name: `Fan-WebSSH ${ clientName }`, version: appVersion || '' },
       os: { name: clientName, version: parts.join('; ') || '' }
     }
   }
@@ -146,14 +146,15 @@ const updatePwd = async ({ res, request }) => {
   res.success({ data: true, msg: 'success' })
 }
 
-const getEasynodeVersion = async ({ res }) => {
+const getFanWebsshVersion = async ({ res }) => {
   try {
-    // const { data } = await axios.get('https://api.github.com/repos/chaos-zhu/easynode/releases/latest')
-    const { data } = await axios.get('https://get-easynode-latest-version.chaoszhu.workers.dev/version')
-    res.success({ data, msg: 'success' })
+    const { data } = await axios.get('https://raw.githubusercontent.com/meimolihan/fan-webssh/main/server/version.json')
+    const dataArr = Array.isArray(data) ? data : []
+    const latest = dataArr.find(item => item?.version && !item.version.startsWith('native-v')) || dataArr[0] || {}
+    res.success({ data: { version: latest.version || '' }, msg: 'success' })
   } catch (error) {
-    logger.error('Failed to fetch Easynode latest version:', error)
-    res.fail({ msg: 'Failed to fetch Easynode latest version' })
+    logger.error('Failed to fetch Fan-WebSSH latest version:', error)
+    res.fail({ msg: 'Failed to fetch Fan-WebSSH latest version' })
   }
 }
 
@@ -164,7 +165,7 @@ const getMFA2Status = async ({ res }) => {
 }
 const getMFA2Code = async ({ res }) => {
   const { user } = await keyDB.findOneAsync({})
-  let { otpauth_url, base32 } = speakeasy.generateSecret({ name: `EasyNode-${ user }`, length: 20 })
+  let { otpauth_url, base32 } = speakeasy.generateSecret({ name: `FanWebSSH-${ user }`, length: 20 })
   tempSecret = base32
   const qrImage = await QRCode.toDataURL(otpauth_url)
   const data = { qrImage, secret: tempSecret }
@@ -217,7 +218,7 @@ module.exports = {
   login,
   getpublicKey,
   updatePwd,
-  getEasynodeVersion,
+  getFanWebsshVersion,
   getMFA2Status,
   getMFA2Code,
   enableMFA2,

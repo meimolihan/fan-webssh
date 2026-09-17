@@ -139,7 +139,7 @@ export default {
   deleteOnekeyRecord(ids) {
     return axios({ url: '/onekey', method: 'post', data: { ids } })
   },
-  getEasynodeVersion() {
+  getFanWebsshVersion() {
     return axios({ url: '/version', method: 'get' })
   },
   getAIConfig() {
@@ -202,5 +202,27 @@ export default {
   },
   updateTerminalSessionConfig(data) {
     return axios({ url: '/terminal-session-config', method: 'post', data })
+  },
+  // 服务管理相关API
+  getSystemInfo() {
+    return axios({ url: '/system/info', method: 'get' })
+  },
+  systemStart() {
+    return axios({ url: '/system/start', method: 'post' })
+  },
+  systemStop() {
+    return axios({ url: '/system/stop', method: 'post' })
+  },
+  systemRestart() {
+    return axios({ url: '/system/restart', method: 'post' })
+  },
+  systemBackup(data) {
+    return axios({ url: '/system/backup', method: 'post', data })
+  },
+  systemRecover(data) {
+    return axios({ url: '/system/recover', method: 'post', data })
+  },
+  getSystemJob(params) {
+    return axios({ url: '/system/job', method: 'get', params })
   }
 }

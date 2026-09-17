@@ -1,4 +1,4 @@
-import 'package:easynode_native/features/terminal/server_status_snapshot.dart';
+import 'package:fan-webssh_native/features/terminal/server_status_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

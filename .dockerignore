@@ -1,7 +1,7 @@
 node_modules
 !.gitkeep
 dist
-easynode-server.zip
+fan-webssh-server.zip
 server/app/static/*
 server/app/socket/sftp-cache/*
 !server/app/socket/sftp-cache/.gitkeep

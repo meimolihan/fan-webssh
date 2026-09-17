@@ -1,7 +1,7 @@
 const { getSSHList, addSSH, updateSSH, removeSSH, getCommand, decryptPrivateKey, getRdpToken } = require('../controller/ssh')
 const { getSftpFavorites } = require('../controller/sftp')
 const { getHostList, addHost, updateHost, batchUpdateHost, removeHost, importHost, updateLastConnectTime } = require('../controller/host')
-const { login, getpublicKey, updatePwd, getEasynodeVersion, getMFA2Status, getMFA2Code, enableMFA2, disableMFA2 } = require('../controller/user')
+const { login, getpublicKey, updatePwd, getFanWebsshVersion, getMFA2Status, getMFA2Code, enableMFA2, disableMFA2 } = require('../controller/user')
 const { getNotifyConfig, updateNotifyConfig, getNotifyList, updateNotifyList } = require('../controller/notify')
 const { getGroupList, addGroupList, updateGroupList, removeGroup } = require('../controller/group')
 const { getScriptList, getLocalScriptList, addScript, updateScriptList, removeScript, batchRemoveScript, importScript } = require('../controller/scripts')
@@ -14,6 +14,7 @@ const { getTerminalConfig, saveTerminalConfig } = require('../controller/termina
 const { getServerListConfig, saveServerListConfig } = require('../controller/server-list-config')
 const { getSuspendedSessions, getTerminalSessionConfig, updateTerminalSessionConfig } = require('../controller/terminal')
 const { getNativeSshConnection } = require('../controller/native')
+const { getSystemInfo, systemStart, systemStop, systemRestart, systemBackup, systemRecover, getSystemJob } = require('../controller/system')
 
 const ssh = [
   {
@@ -108,7 +109,7 @@ const user = [
   {
     method: 'get',
     path: '/version',
-    controller: getEasynodeVersion
+    controller: getFanWebsshVersion
   },
   {
     method: 'get',
@@ -390,6 +391,44 @@ const sftp = [
   }
 ]
 
+const system = [
+  {
+    method: 'get',
+    path: '/system/info',
+    controller: getSystemInfo
+  },
+  {
+    method: 'post',
+    path: '/system/start',
+    controller: systemStart
+  },
+  {
+    method: 'post',
+    path: '/system/stop',
+    controller: systemStop
+  },
+  {
+    method: 'post',
+    path: '/system/restart',
+    controller: systemRestart
+  },
+  {
+    method: 'post',
+    path: '/system/backup',
+    controller: systemBackup
+  },
+  {
+    method: 'post',
+    path: '/system/recover',
+    controller: systemRecover
+  },
+  {
+    method: 'get',
+    path: '/system/job',
+    controller: getSystemJob
+  }
+]
+
 module.exports = [].concat(
   ssh,
   host,
@@ -406,5 +445,6 @@ module.exports = [].concat(
   serverListConfig,
   terminal,
   native,
-  sftp
+  sftp,
+  system
 )

@@ -2878,7 +2878,7 @@ semver@^7.5.3, semver@^7.5.4:
   resolved "https://registry.npmjs.org/semver/-/semver-7.6.3.tgz"
   integrity sha512-oVekP1cKtI+CTDvHWYFUcMtsK/00wmAEfyqKfNdARm8u1wNVhSgaX7A8d4UuIlUI5e84iEwOhs7ZPYRmzU9U6A==
 
-"server@file:/workspace/easynode/server":
+"server@file:/vol1/1000/GitHub/fan-webssh/server":
   version "3.7.1"
   resolved "file:server"
   dependencies:

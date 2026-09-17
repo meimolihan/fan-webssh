@@ -1,7 +1,7 @@
 {
   "name": "web",
-  "version": "3.7.1",
-  "description": "easynode-web",
+  "version": "1.0.3",
+  "description": "fan-webssh-web",
   "private": true,
   "scripts": {
     "dev": "vite",

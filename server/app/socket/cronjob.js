@@ -3,7 +3,7 @@ const { createTerminal } = require('./terminal')
 const { createSecureWs } = require('../utils/ws-tool')
 const crypto = require('crypto')
 
-const LOG_DIR = '/tmp/.easynode_cronjob_logs'
+const LOG_DIR = '/tmp/.fan-webssh_cronjob_logs'
 
 function generateJobId() {
   return crypto.randomBytes(4).toString('hex')
@@ -45,8 +45,8 @@ function parseCrontab(crontabText) {
     const line = lines[i]
     const trimmed = line.trim()
 
-    // 检测 easynode 管理的 job 注释标记
-    const jobMatch = trimmed.match(/^# easynode:cronjob:([^:]+):(.*)$/)
+    // 检测 fan-webssh 管理的 job 注释标记
+    const jobMatch = trimmed.match(/^# fan-webssh:cronjob:([^:]+):(.*)$/)
     if (jobMatch) {
       const jobId = jobMatch[1]
       const jobName = jobMatch[2]
@@ -54,10 +54,10 @@ function parseCrontab(crontabText) {
       if (i < lines.length) {
         const cronLine = lines[i].trim()
         // 检查是否被禁用（cron 行以 # 开头）
-        const isDisabled = cronLine.startsWith('# easynode:disable:')
-        const actualLine = isDisabled ? cronLine.replace(/^#\s*easynode:disable:/, '') : cronLine
+        const isDisabled = cronLine.startsWith('# fan-webssh:disable:')
+        const actualLine = isDisabled ? cronLine.replace(/^#\s*fan-webssh:disable:/, '') : cronLine
 
-        if (actualLine && !actualLine.startsWith('# easynode:')) {
+        if (actualLine && !actualLine.startsWith('# fan-webssh:')) {
           const parts = actualLine.split(/\s+/)
           if (parts.length >= 6) {
             jobs.push({
@@ -72,7 +72,7 @@ function parseCrontab(crontabText) {
         }
       }
     } else if (trimmed && !trimmed.startsWith('#') && trimmed.length > 0) {
-      // 普通的非 easynode 管理的 cron 任务
+      // 普通的非 fan-webssh 管理的 cron 任务
       const parts = trimmed.split(/\s+/)
       if (parts.length >= 6) {
         jobs.push({
@@ -96,12 +96,12 @@ function buildCrontab(jobs) {
   const lines = []
   for (const job of jobs) {
     if (job.deleted) continue
-    lines.push(`# easynode:cronjob:${ job.id }:${ job.name }`)
+    lines.push(`# fan-webssh:cronjob:${ job.id }:${ job.name }`)
     if (job.enabled) {
       lines.push(`${ job.schedule } ${ job.command }`)
     } else {
       // 禁用的任务：用注释标记包裹 cron 行
-      lines.push(`# easynode:disable:${ job.schedule } ${ job.command }`)
+      lines.push(`# fan-webssh:disable:${ job.schedule } ${ job.command }`)
     }
   }
   return lines.join('\n') + '\n'

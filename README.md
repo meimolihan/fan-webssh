@@ -1,23 +1,23 @@
 <div align="center">
 
-# EasyNode
+# Fan-WebSSH
 
 _✨ 一个多功能Linux服务器终端面板(webSSH&webSFTP) ✨_
 
 </div>
 
 <p align="center">
-  <a href="https://github.com/chaos-zhu/easynode/releases/latest">
-    <img src="https://img.shields.io/github/v/release/chaos-zhu/easynode?color=brightgreen" alt="release">
+  <a href="https://github.com/meimolihan/fan-webssh/releases/latest">
+    <img src="https://img.shields.io/github/v/release/meimolihan/fan-webssh?color=brightgreen" alt="release">
   </a>
-  <a href="https://github.com/chaos-zhu/easynode/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/chaos-zhu/easynode/docker-builder.yml?branch=main" alt="deployment status">
+  <a href="https://github.com/meimolihan/fan-webssh/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/meimolihan/fan-webssh/docker-builder.yml?branch=main" alt="deployment status">
   </a>
-  <a href="https://hub.docker.com/repository/docker/chaoszhu/easynode">
-    <img src="https://img.shields.io/docker/pulls/chaoszhu/easynode?color=brightgreen" alt="docker pull">
+  <a href="https://hub.docker.com/repository/docker/meimolihan/fan-webssh">
+    <img src="https://img.shields.io/docker/pulls/meimolihan/fan-webssh?color=brightgreen" alt="docker pull">
   </a>
-  <a href="https://github.com/chaos-zhu/easynode/releases/latest">
-    <img src="https://img.shields.io/github/downloads/chaos-zhu/easynode/total?color=brightgreen&include_prereleases" alt="release">
+  <a href="https://github.com/meimolihan/fan-webssh/releases/latest">
+    <img src="https://img.shields.io/github/downloads/meimolihan/fan-webssh/total?color=brightgreen&include_prereleases" alt="release">
   </a>
 </p>
 
@@ -59,7 +59,7 @@ _✨ 一个多功能Linux服务器终端面板(webSSH&webSFTP) ✨_
 
 ## 移动端展示
 
-Native端复用现有EasyNode后端，在移动设备上提供服务器管理、原生SSH终端、SFTP文件管理、Docker、脚本库和服务器状态等能力。
+Native端复用现有Fan-WebSSH后端，在移动设备上提供服务器管理、原生SSH终端、SFTP文件管理、Docker、脚本库和服务器状态等能力。
 
 <p align="center">
   <img src="./doc_images/main3.png" alt="Native端服务器、SFTP和脚本库展示" width="900">
@@ -77,15 +77,15 @@ Native端复用现有EasyNode后端，在移动设备上提供服务器管理、
 
 ### docker-compose部署-自动更新（推荐）
 
-部署本项目的[docker-compose.yml](https://github.com/chaos-zhu/easynode/blob/main/docker-compose.yml)默认采用[腾讯云CNB自动构建镜像](https://cnb.cool/chaoszhu/easynode)，如发现服务不可用请自行替换或移除加速
+部署本项目的[docker-compose.yml](https://github.com/meimolihan/fan-webssh/blob/main/docker-compose.yml)默认采用[腾讯云CNB自动构建镜像](https://cnb.cool/meimolihan/fan-webssh)，如发现服务不可用请自行替换或移除加速
 ```shell
 # docker compose快速部署
 
-# 1. 创建easynode目录
-mkdir -p /root/easynode && cd /root/easynode
+# 1. 创建fan-webssh目录
+mkdir -p /root/fan-webssh && cd /root/fan-webssh
 
 # 2. 下载docker-compose.yml文件
-wget https://git.221022.xyz/https://raw.githubusercontent.com/chaos-zhu/easynode/main/docker-compose.yml
+wget https://git.221022.xyz/https://raw.githubusercontent.com/meimolihan/fan-webssh/main/docker-compose.yml
 
 # 3. 启动服务
 docker compose up -d
@@ -108,10 +108,44 @@ docker compose up -d
 docker run -d \
   -p 8082:8082 \
   --restart=always \
-  -v /root/easynode/db:/easynode/app/db \
+  -v /root/fan-webssh/db:/fan-webssh/app/db \
   -e GUACD_HOST=127.0.0.1 \
   -e GUACD_PORT=4822 \
-  chaoszhu/easynode
+  meimolihan/fan-webssh
+```
+
+### 一键脚本安装（systemd）
+
+适用于直接部署在 Linux 服务器（非 Docker），脚本会自动安装依赖、构建前端、注册 systemd 服务，并安装内置命令 `fan-webssh`。
+
+```shell
+# 默认端口 8082，数据目录 /var/lib/fan-webssh
+bash scripts/install.sh
+
+# 自定义端口与数据目录，免交互
+bash scripts/install.sh -p 9000 -d /var/lib/fan-webssh -y
+```
+
+### 内置 CLI 管理命令
+
+安装后可直接使用 `fan-webssh` 命令管理服务：
+
+| 命令 | 说明 |
+|------|------|
+| `fan-webssh status` | 查看运行方式（systemd / Docker / 直接运行）、PID、监听端口、运行时长、内存与路径 |
+| `fan-webssh start` / `stop` / `restart` | 启动 / 停止 / 重启 systemd 服务 |
+| `fan-webssh uninstall [-y] [--purge\|--keep-data]` | 停止并移除服务/容器/进程，删除程序与安装记录，可选删除数据目录 |
+| `fan-webssh version` | 查看版本号 |
+
+```shell
+# 查看服务状态
+fan-webssh status
+
+# 免确认卸载，保留数据目录
+sudo fan-webssh uninstall -y
+
+# 免确认卸载，并删除数据目录
+sudo fan-webssh uninstall -y --purge
 ```
 
 ## 环境变量
@@ -134,21 +168,21 @@ docker run -d \
 ## 监控服务安装
 
 ！v3.2.0开始不再需要安装监控服务端，低于此版本的面板不再提供客户端下载，建议升级到此版本。
-已经安装过监控服务的服务器建议使用内置一键脚本卸载：`脚本库 -> easynode监控服务卸载`
+已经安装过监控服务的服务器建议使用内置一键脚本卸载：`脚本库 -> fan-webssh监控服务卸载`
 
 ## 建议
 
-> 任何系统无法保障没有bug的存在，EasyNode也一样。
+> 任何系统无法保障没有bug的存在，Fan-WebSSH也一样。
 
 1. 请妥善利用面板提供MFA2、IP白名单等安全功能, 如需加强建议搭配**OpenVPN**搭建安全隧道访问。如果需要更高级别的安全性，建议面板服务不要暴露到公网。
 
 2. webssh与监控服务都将以`该服务器作为中转`。中国大陆用户建议使用香港、新加坡、日本、韩国等地区的低延迟服务器来安装服务端面板。
 
-3. 及时升级面板，EasyNode会不定期升级底层安全依赖。建议使用上面提供的docker-compose.yml一键部署，可自动检测更新并升级。
+3. 及时升级面板，Fan-WebSSH会不定期升级底层安全依赖。建议使用上面提供的docker-compose.yml一键部署，可自动检测更新并升级。
 
 ## 声明
 
-EasyNode于2022年8月首次发布，作者在开发该面板时已尽可能确保其安全性。EasyNode同其他项目一样，都会依赖流行的第三方库，而这些第三方库的安全性无法得到永久保障。因此，如果您的服务器具备重要的数据价值，请避免将该项目部署在公网环境或者不使用此项目。对于因安全漏洞造成的任何损失，作者概不承担任何责任。
+Fan-WebSSH于2022年8月首次发布，作者在开发该面板时已尽可能确保其安全性。Fan-WebSSH同其他项目一样，都会依赖流行的第三方库，而这些第三方库的安全性无法得到永久保障。因此，如果您的服务器具备重要的数据价值，请避免将该项目部署在公网环境或者不使用此项目。对于因安全漏洞造成的任何损失，作者概不承担任何责任。
 
 ---
 

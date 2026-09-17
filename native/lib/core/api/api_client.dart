@@ -30,7 +30,7 @@ String buildNativeUserAgent({String? appVersion}) {
   final version = appVersion?.trim().isNotEmpty == true
       ? appVersion!.trim()
       : _fallbackNativeAppVersion;
-  return 'EasyNode-$clientName/$version ($sanitizedVersion)';
+  return 'FanWebSSH-$clientName/$version ($sanitizedVersion)';
 }
 
 class ApiClient {

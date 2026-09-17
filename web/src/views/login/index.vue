@@ -2,7 +2,7 @@
   <div class="login_container">
     <div class="login_box">
       <div>
-        <h2>EasyNode-{{ version }}</h2>
+        <h2>FanWebSSH-{{ version }}</h2>
       </div>
       <div v-if="notKey">
         <el-alert title="Error: 用于加密的公钥获取失败，请尝试重新启动或部署服务" type="error" show-icon />

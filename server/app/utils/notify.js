@@ -214,7 +214,7 @@ async function sendNoticeAsync(noticeAction, title, content) {
     let notifyConfig = await notifyConfigDB.findOneAsync({})
     let { type } = notifyConfig
     if (!type) return logger.error('通知类型不存在: ', type)
-    title = `EasyNode-${ title }`
+    title = `FanWebSSH-${ title }`
     content += `\n通知发送时间：${ new Date() }`
     switch (type) {
       case 'sct':

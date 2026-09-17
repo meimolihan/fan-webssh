@@ -13,6 +13,9 @@
       <el-tab-pane label="代理服务" name="proxy">
         <Proxy />
       </el-tab-pane>
+      <el-tab-pane label="服务管理" name="system">
+        <System />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -24,6 +27,7 @@ import Session from './components/session.vue'
 import User from './components/user.vue'
 import Notify from './components/notify.vue'
 import Proxy from './components/proxy.vue'
+import System from './components/system.vue'
 
 const route = useRoute()
 const router = useRouter()

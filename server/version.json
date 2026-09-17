@@ -1,9 +1,9 @@
 [
   {
-    "version": "v3.7.1",
-    "date": "2026-07-05",
+    "version": "v1.0.3",
+    "date": "2026-09-17",
     "nativeVersion": "native-v1.1.0",
-    "nativeReleaseUrl": "https://github.com/chaos-zhu/easynode/releases",
+    "nativeReleaseUrl": "https://github.com/meimolihan/fan-webssh/releases",
     "iosReleaseUrl": "",
     "ohosReleaseUrl": "",
     "features": [
@@ -26,7 +26,7 @@
     "version": "v3.7.0",
     "date": "2026-06-13",
     "nativeVersion": "native-v1.0.1",
-    "nativeReleaseUrl": "https://github.com/chaos-zhu/easynode/releases",
+    "nativeReleaseUrl": "https://github.com/meimolihan/fan-webssh/releases",
     "iosReleaseUrl": "",
     "ohosReleaseUrl": "",
     "features": [
@@ -45,7 +45,7 @@
     "version": "v3.7.0",
     "date": "2026-05-30",
     "nativeVersion": "native-v0.1.1",
-    "nativeReleaseUrl": "https://github.com/chaos-zhu/easynode/releases",
+    "nativeReleaseUrl": "https://github.com/meimolihan/fan-webssh/releases",
     "iosReleaseUrl": "",
     "ohosReleaseUrl": "",
     "features": [

@@ -818,7 +818,7 @@ async function checkSshpassAvailable(sshClient) {
 // 在源主机上创建临时密钥文件
 async function createRemoteTempKeyFile(sshClient, privateKey) {
   return new Promise((resolve, reject) => {
-    const remotePath = `/tmp/easynode_key_${ Date.now() }_${ Math.random().toString(36).slice(2) }`
+    const remotePath = `/tmp/fan-webssh_key_${ Date.now() }_${ Math.random().toString(36).slice(2) }`
     sshClient.sftp((err, sftp) => {
       if (err) return reject(err)
       // 打开文件句柄
@@ -853,7 +853,7 @@ function cleanupRemoteKeyFile(sshClient, keyFile) {
 
   // 先删除文件，再验证删除
   // const cleanupCmd = `rm -f "${ keyFile }" && if [ -f "${ keyFile }" ]; then echo "CLEANUP_FAILED"; else echo "CLEANUP_SUCCESS"; fi`
-  const cleanupCmd = 'cd /tmp && rm -f easynode_key_* && if ls easynode_key_* 2>/dev/null; then echo "CLEANUP_FAILED"; else echo "CLEANUP_SUCCESS"; fi'
+  const cleanupCmd = 'cd /tmp && rm -f fan-webssh_key_* && if ls fan-webssh_key_* 2>/dev/null; then echo "CLEANUP_FAILED"; else echo "CLEANUP_SUCCESS"; fi'
   sshClient.exec(cleanupCmd, (err, stream) => {
     if (err) {
       logger.error('清理密钥文件时SSH错误:', err)

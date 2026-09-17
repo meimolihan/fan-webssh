@@ -15,16 +15,16 @@ async function updateNotifyConfig({ res, request }) {
     // console.log('noticeConfig: ', noticeConfig[type])
     switch (type) {
       case 'sct':
-        await sendServerChan(noticeConfig[type]['sendKey'], 'EasyNode通知测试', '这是一条测试通知')
+        await sendServerChan(noticeConfig[type]['sendKey'], 'Fan-WebSSH通知测试', '这是一条测试通知')
         break
       case 'email':
-        await sendEmail(noticeConfig[type], 'EasyNode通知测试', '这是一条测试通知')
+        await sendEmail(noticeConfig[type], 'Fan-WebSSH通知测试', '这是一条测试通知')
         break
       case 'tg':
-        await sendTg(noticeConfig[type], 'EasyNode通知测试', '这是一条测试通知')
+        await sendTg(noticeConfig[type], 'Fan-WebSSH通知测试', '这是一条测试通知')
         break
       case 'webhook':
-        await sendWebhook(noticeConfig[type], 'EasyNode通知测试', '这是一条测试通知')
+        await sendWebhook(noticeConfig[type], 'Fan-WebSSH通知测试', '这是一条测试通知')
         break
     }
     await notifyConfigDB.update({}, { $set: noticeConfig }, { upsert: true })

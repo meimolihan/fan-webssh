@@ -1,5 +1,5 @@
 name: file_picker_ohos
-description: EasyNode vendored OHOS native registration for file_picker.
+description: Fan-WebSSH vendored OHOS native registration for file_picker.
 version: 10.3.8
 publish_to: 'none'
 

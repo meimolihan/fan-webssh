@@ -135,7 +135,7 @@
                   "id": "z8KfOz",
                   "name": "Logo Text",
                   "fill": "$--sidebar-primary",
-                  "content": "EasyNode",
+                  "content": "Fan-WebSSH",
                   "fontFamily": "$--font-secondary",
                   "fontSize": 16,
                   "fontWeight": "700"
@@ -1143,7 +1143,7 @@
                   "id": "ynV0B",
                   "name": "Logo Text",
                   "fill": "$--sidebar-primary",
-                  "content": "EasyNode",
+                  "content": "Fan-WebSSH",
                   "fontFamily": "$--font-secondary",
                   "fontSize": 16,
                   "fontWeight": "700"
@@ -1826,9 +1826,9 @@
                 {
                   "type": "text",
                   "id": "PWIfA",
-                  "name": "Path easynode",
+                  "name": "Path fan-webssh",
                   "fill": "$--muted-foreground",
-                  "content": "easynode",
+                  "content": "fan-webssh",
                   "fontFamily": "$--font-primary",
                   "fontSize": 12,
                   "fontWeight": "normal"
@@ -3579,7 +3579,7 @@
                   "id": "BaqcA",
                   "name": "Path Info",
                   "fill": "$--muted-foreground",
-                  "content": "/home/admin/projects/easynode/server/app",
+                  "content": "/home/admin/projects/fan-webssh/server/app",
                   "fontFamily": "$--font-primary",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -3658,7 +3658,7 @@
                   "id": "g92k4u",
                   "name": "Logo Text",
                   "fill": "$--sidebar-primary",
-                  "content": "EasyNode",
+                  "content": "Fan-WebSSH",
                   "fontFamily": "$--font-secondary",
                   "fontSize": 16,
                   "fontWeight": "700"
@@ -5855,7 +5855,7 @@
                   "id": "Mjo84",
                   "name": "Logo Text",
                   "fill": "$--sidebar-primary",
-                  "content": "EasyNode",
+                  "content": "Fan-WebSSH",
                   "fontFamily": "$--font-secondary",
                   "fontSize": 16,
                   "fontWeight": "700"
@@ -7071,7 +7071,7 @@
                 {
                   "type": "frame",
                   "id": "Pyl1k",
-                  "name": "Row easynode-server",
+                  "name": "Row fan-webssh-server",
                   "width": "fill_container",
                   "height": 48,
                   "stroke": "$--border",
@@ -7107,7 +7107,7 @@
                           "id": "EW4af",
                           "name": "Container Name",
                           "fill": "$--foreground",
-                          "content": "easynode-server",
+                          "content": "fan-webssh-server",
                           "fontFamily": "$--font-primary",
                           "fontSize": 13,
                           "fontWeight": "500"
@@ -8402,7 +8402,7 @@
                   "id": "HmYiX",
                   "name": "Logo Text",
                   "fill": "$--sidebar-primary",
-                  "content": "EasyNode",
+                  "content": "Fan-WebSSH",
                   "fontFamily": "$--font-secondary",
                   "fontSize": 16,
                   "fontWeight": "700"
@@ -8816,7 +8816,7 @@
                           "id": "d0Hvm",
                           "name": "Plus Text",
                           "fill": "$--primary-foreground",
-                          "content": "EasyNode Plus",
+                          "content": "Fan-WebSSH Plus",
                           "fontFamily": "$--font-secondary",
                           "fontSize": 11,
                           "fontWeight": "600"
@@ -9683,7 +9683,7 @@
                       "fill": "$--muted-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Customize the appearance of EasyNode to match your preference.",
+                      "content": "Customize the appearance of Fan-WebSSH to match your preference.",
                       "fontFamily": "$--font-secondary",
                       "fontSize": 14,
                       "fontWeight": "normal"

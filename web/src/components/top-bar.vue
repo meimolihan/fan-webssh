@@ -23,7 +23,7 @@
       <!-- 顶部菜单模式：显示logo和菜单 -->
       <div v-if="menuPosition === 'top' && !isMobileScreen" class="top_logo_wrap" @click="toggleMenuPosition">
         <img src="/logo_v2_01.png" alt="logo">
-        <h1>EasyNode</h1>
+        <h1>Fan-WebSSH</h1>
       </div>
 
       <MenuList
@@ -70,20 +70,20 @@
       :close-on-click-modal="false"
     >
       <div class="about_content">
-        <!-- <h1>EasyNode</h1> -->
+        <!-- <h1>Fan-WebSSH</h1> -->
         <p>当前版本: {{ currentVersion }} <span v-show="!isNew">(最新)</span> </p>
         <p v-if="checkVersionErr" class="conspicuous">Error：版本更新检测失败(版本检测API需要外网环境),请手动访问GitHub查看</p>
         <p v-if="isNew" class="conspicuous">
           新版本可用: {{ latestVersion }} -> <a
             class="link"
-            href="https://github.com/chaos-zhu/easynode?tab=readme-ov-file#%E9%A1%B9%E7%9B%AE%E9%83%A8%E7%BD%B2"
+            href="https://github.com/meimolihan/fan-webssh?tab=readme-ov-file#%E9%A1%B9%E7%9B%AE%E9%83%A8%E7%BD%B2"
             target="_blank"
-          >https://github.com/chaos-zhu/easynode</a>
+          >https://github.com/meimolihan/fan-webssh</a>
         </p>
         <template v-if="features.length > 0 && isNew">
           <div class="version_features_title">
             <el-icon><Document /></el-icon>
-            最新版本更新了以下内容(<a href="https://github.com/chaos-zhu/easynode/blob/main/CHANGELOG.md" target="_blank">更新日志</a>):
+            最新版本更新了以下内容(<a href="https://github.com/meimolihan/fan-webssh/blob/main/CHANGELOG.md" target="_blank">更新日志</a>):
           </div>
           <ul class="conspicuous feature_list">
             <li v-for="feature in features" :key="feature">
@@ -92,14 +92,14 @@
           </ul>
         </template>
         <p>
-          TG更新通知频道：<a class="link" href="https://t.me/easynode_notify" target="_blank">https://t.me/easynode_notify</a>
+          TG更新通知频道：<a class="link" href="https://t.me/fan-webssh_notify" target="_blank">https://t.me/fan-webssh_notify</a>
         </p>
         <p>
           项目地址：<a
             class="link"
-            href="https://github.com/chaos-zhu/easynode"
+            href="https://github.com/meimolihan/fan-webssh"
             target="_blank"
-          >https://github.com/chaos-zhu/easynode</a>
+          >https://github.com/meimolihan/fan-webssh</a>
         </p>
         <div class="about_footer">
           <el-button type="info" @click="visible = false">关闭</el-button>
@@ -115,7 +115,7 @@
     >
       <div class="mobile_logo_wrap">
         <img src="/logo_v2_01.png" alt="logo">
-        <h1>EasyNode</h1>
+        <h1>Fan-WebSSH</h1>
       </div>
       <MenuList @select="() => menuCollapse = false" />
     </el-drawer>
@@ -175,7 +175,7 @@ async function checkLatestVersionByGitRelease() {
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('请求超时')), timeout)
     )
-    const url = `https://api.github.com/repos/chaos-zhu/easynode/releases?ts=${ new Date().getTime() }`
+    const url = `https://api.github.com/repos/meimolihan/fan-webssh/releases?ts=${ new Date().getTime() }`
     const fetchPromise = fetch(url, {
       headers: {
         'Accept': 'application/vnd.github.v3+json'
@@ -219,7 +219,7 @@ async function checkLatestVersionByJson() {
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('请求超时')), timeout)
     )
-    const url = `https://easynode-version.chaoszhu.com/chaos-zhu/easynode/refs/heads/main/server/version.json?ts=${ new Date().getTime() }`
+    const url = `https://raw.githubusercontent.com/meimolihan/fan-webssh/main/server/version.json?ts=${ new Date().getTime() }`
     const fetchPromise = fetch(url)
     const response = await Promise.race([fetchPromise, timeoutPromise,])
     if (!response.ok) {

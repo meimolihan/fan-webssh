@@ -623,7 +623,7 @@ const handleFooterBarHeightChange = (height) => {
 }
 
 // SFTP宽度调整相关
-const SFTP_WIDTH_KEY = 'easynode_sftp_width'
+const SFTP_WIDTH_KEY = 'fan-webssh_sftp_width'
 const isResizingSftp = ref(false)
 const startX = ref(0)
 const startWidth = ref(0)

@@ -32,12 +32,12 @@ class LoginSession {
 
   bool get isNativeClient {
     const prefixes = [
-      'EasyNode Android',
-      'EasyNode iOS',
-      'EasyNode macOS',
-      'EasyNode Windows',
-      'EasyNode Linux',
-      'EasyNode Native',
+      'Fan-WebSSH Android',
+      'Fan-WebSSH iOS',
+      'Fan-WebSSH macOS',
+      'Fan-WebSSH Windows',
+      'Fan-WebSSH Linux',
+      'Fan-WebSSH Native',
     ];
     return prefixes.any((prefix) => browser.contains(prefix));
   }

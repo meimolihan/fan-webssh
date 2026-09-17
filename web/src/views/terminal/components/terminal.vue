@@ -367,12 +367,12 @@ const connectIO = () => {
   })
 
   socket.value.on('connect_error', (err) => {
-    console.error('EasyNode服务端连接错误：', err)
+    console.error('Fan-WebSSH服务端连接错误：', err)
     curStatus.value = CONNECT_FAIL
-    term.value.write('\r\n\x1b[91mError: 连接失败,请检查EasyNode服务端是否正常, 回车重新发起连接\x1b[0m \r\n')
+    term.value.write('\r\n\x1b[91mError: 连接失败,请检查Fan-WebSSH服务端是否正常, 回车重新发起连接\x1b[0m \r\n')
     $notification({
       title: '服务端连接失败',
-      message: '请检查EasyNode服务端是否正常',
+      message: '请检查Fan-WebSSH服务端是否正常',
       type: 'error'
     })
   })
@@ -436,7 +436,7 @@ const createLocalTerminal = () => {
     customRules: customHighlightRules.value
   })
 
-  terminalInstance.writeln('\x1b[1;32mWelcome to EasyNode terminal\x1b[0m.')
+  terminalInstance.writeln('\x1b[1;32mWelcome to Fan-WebSSH terminal\x1b[0m.')
   terminalInstance.writeln('\x1b[1;32mAn experimental Web-SSH Terminal\x1b[0m.')
   if (props.autoFocus) {
     terminalInstance.focus()
@@ -869,7 +869,7 @@ const inputCommand = (command, type = 'input', useBase64 = false) => {
       // 处理 UTF-8 字符：使用现代浏览器的 TextEncoder API
       const utf8Bytes = new TextEncoder().encode(normalizedCommand)
       const encodedScript = btoa(String.fromCharCode(...utf8Bytes))
-      command = `tmp_script=$(mktemp /tmp/easynode-script-XXXXXX.sh) && printf '%s' '${ encodedScript }' | base64 -d > "$tmp_script" && chmod +x "$tmp_script" && bash "$tmp_script"; script_status=$?; [ -n "$tmp_script" ] && rm -f "$tmp_script"; unset tmp_script${ autoExecuteScript.value ? '\n' : '' }`
+      command = `tmp_script=$(mktemp /tmp/fan-webssh-script-XXXXXX.sh) && printf '%s' '${ encodedScript }' | base64 -d > "$tmp_script" && chmod +x "$tmp_script" && bash "$tmp_script"; script_status=$?; [ -n "$tmp_script" ] && rm -f "$tmp_script"; unset tmp_script${ autoExecuteScript.value ? '\n' : '' }`
     } else {
       // 直接发送模式：根据脚本执行模式添加换行符
       command = command + (autoExecuteScript.value ? '\n' : '')
@@ -891,7 +891,7 @@ const execExternalCommand = (command, useBase64 = false) => {
     // 处理 UTF-8 字符：使用现代浏览器的 TextEncoder API
     const utf8Bytes = new TextEncoder().encode(normalizedCommand)
     const encodedScript = btoa(String.fromCharCode(...utf8Bytes))
-    command = `tmp_script=$(mktemp /tmp/easynode-script-XXXXXX.sh) && printf '%s' '${ encodedScript }' | base64 -d > "$tmp_script" && chmod +x "$tmp_script" && bash "$tmp_script"; script_status=$?; [ -n "$tmp_script" ] && rm -f "$tmp_script"; unset tmp_script${ autoExecuteScript.value ? '\n' : '' }`
+    command = `tmp_script=$(mktemp /tmp/fan-webssh-script-XXXXXX.sh) && printf '%s' '${ encodedScript }' | base64 -d > "$tmp_script" && chmod +x "$tmp_script" && bash "$tmp_script"; script_status=$?; [ -n "$tmp_script" ] && rm -f "$tmp_script"; unset tmp_script${ autoExecuteScript.value ? '\n' : '' }`
   } else {
     // 直接发送模式：根据脚本执行模式添加换行符
     command = command + (autoExecuteScript.value ? '\n' : '')

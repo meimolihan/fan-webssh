@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:pointycastle/export.dart';
 
-/// Wraps RSA encryption against the EasyNode server public key fetched from
+/// Wraps RSA encryption against the Fan-WebSSH server public key fetched from
 /// `/api/v1/get-pub-pem`. The server side uses node-rsa with PKCS1 padding
 /// and decrypts to a utf8 string via `rsakey.decrypt(ct, 'utf8')`, so all
 /// payloads here are passed through utf8 before encrypting.

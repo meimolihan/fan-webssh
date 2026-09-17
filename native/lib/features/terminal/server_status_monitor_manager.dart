@@ -261,7 +261,7 @@ class ServerStatusMonitorManager extends ChangeNotifier {
 
   Future<void> _fetchStaticInfo(_MonitorRuntime runtime) async {
     if (runtime.staticInfoFetched) return;
-    const sep = '---EASYNODE_SEP---';
+    const sep = '---FAN_WEBSSH_SEP---';
     final output = await _executeShellCommand(
       runtime,
       'hostname\necho $sep'
@@ -303,9 +303,9 @@ class ServerStatusMonitorManager extends ChangeNotifier {
       try {
         final output = await _executeShellCommand(
           runtime,
-          'cat /proc/stat\necho ---EASYNODE_SEP---\ncat /proc/uptime && uptime',
+          'cat /proc/stat\necho ---FAN_WEBSSH_SEP---\ncat /proc/uptime && uptime',
         );
-        final parts = output.split('---EASYNODE_SEP---');
+        final parts = output.split('---FAN_WEBSSH_SEP---');
         final procStats = ServerStatusParser.parseProcStat(
           parts.isNotEmpty ? parts[0].trim() : '',
         );
@@ -329,7 +329,7 @@ class ServerStatusMonitorManager extends ChangeNotifier {
 
       // Group 2: Memory (+ cgroup 内存/交换分区限制，容器化环境下 free -m 反映的是宿主机数据)
       try {
-        const memSep = '---EASYNODE_MEMSEP---';
+        const memSep = '---FAN_WEBSSH_MEMSEP---';
         final output = await _executeShellCommand(
           runtime,
           'free -m\necho $memSep'

@@ -136,7 +136,7 @@
           autocomplete="off"
           class="input"
         />
-        <span class="tips">Telegram Token/ChatId 获取: <a class="link" href="https://easynode.chaoszhu.com/zh/guide/get-tg-token" target="_blank">查看教程</a> </span>
+        <span class="tips">Telegram Token/ChatId 获取: <a class="link" href="https://core.telegram.org/bots#6-botfather" target="_blank">查看教程</a> </span>
       </el-form-item>
     </template>
     <!-- Webhook -->

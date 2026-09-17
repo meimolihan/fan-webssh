@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:easynode_native/features/servers/server_group_model.dart';
+import 'package:fan-webssh_native/features/servers/server_group_model.dart';
 
 void main() {
   test('parses group entry into ServerGroupModel', () {

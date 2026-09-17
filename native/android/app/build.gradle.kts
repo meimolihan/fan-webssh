@@ -35,7 +35,7 @@ gradle.taskGraph.whenReady {
 }
 
 android {
-    namespace = "io.github.chaoszhu.easynode"
+    namespace = "io.github.meimolihan.fanwebssh"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -49,7 +49,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.github.chaoszhu.easynode"
+        applicationId = "io.github.meimolihan.fanwebssh"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

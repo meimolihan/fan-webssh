@@ -3,7 +3,7 @@
     <div class="logo_wrap" @click="toggleMenuPosition">
       <img src="/logo_v2_01.png" alt="logo">
       <Transition name="el-fade-in-linear">
-        <h1 v-show="!menuCollapse">EasyNode</h1>
+        <h1 v-show="!menuCollapse">Fan-WebSSH</h1>
       </Transition>
     </div>
     <MenuList />

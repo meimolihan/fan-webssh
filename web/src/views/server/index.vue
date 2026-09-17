@@ -268,7 +268,7 @@ const handleBatchExport = () => {
     delete item.monitorData
     return item
   })
-  const fileName = `easynode-${ $tools.formatTimestamp(Date.now(), 'time', '.') }.json`
+  const fileName = `fan-webssh-${ $tools.formatTimestamp(Date.now(), 'time', '.') }.json`
   exportFile(exportData, fileName, 'application/json')
   getHostTableRefs().forEach(item => item.clearSelection())
 }

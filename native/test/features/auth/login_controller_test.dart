@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:easynode_native/features/auth/login_controller.dart';
+import 'package:fan-webssh_native/features/auth/login_controller.dart';
 
 void main() {
   test('blocks http login until user confirms risk', () async {

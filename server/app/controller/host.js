@@ -72,7 +72,7 @@ async function removeHost({ res, request }) {
 }
 
 async function importHost({ res, request }) {
-  let { body: { importHost, isEasyNodeJson = false } } = request
+  let { body: { importHost, isFanWebsshJson = false } } = request
   if (!Array.isArray(importHost)) return res.fail({ msg: '参数错误' })
   let hostList = await hostListDB.findAsync({})
   // 考虑到批量导入可能会重复太多,先过滤已存在的host:port
@@ -81,7 +81,7 @@ async function importHost({ res, request }) {
   let newHostListLen = newHostList.length
   if (newHostListLen === 0) return res.fail({ msg: '导入的实例已存在' })
 
-  if (isEasyNodeJson) {
+  if (isFanWebsshJson) {
     newHostList = newHostList.map((item) => {
       item.credential = ''
       item.isConfig = false

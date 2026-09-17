@@ -14,7 +14,7 @@
           </div>
         </template>
         <span class="host-info-ip" :title="host">{{ host }}</span>
-        <el-tooltip effect="dark" content="该值为EasyNode服务端主机到目标主机的ping值" placement="bottom">
+        <el-tooltip effect="dark" content="该值为Fan-WebSSH服务端主机到目标主机的ping值" placement="bottom">
           <span class="host-ping" :style="{backgroundColor: handlePingColor(pingValue)}">{{ pingText }}</span>
         </el-tooltip>
         <el-tag size="small" style="cursor: pointer;margin-left: 10px;" @click="handleCopy">复制</el-tag>

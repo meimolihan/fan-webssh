@@ -40,7 +40,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
-const WARN_STORAGE_KEY = 'easynode_warn_shown'
+const WARN_STORAGE_KEY = 'fan-webssh_warn_shown'
 
 const visible = ref(false)
 
@@ -50,7 +50,7 @@ const handleConfirm = () => {
 }
 
 const subTg = () => {
-  window.open('https://t.me/easynode_notify', '_blank')
+  window.open('https://t.me/fan-webssh_notify', '_blank')
 }
 
 const handleClosed = () => {

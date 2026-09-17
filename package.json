@@ -1,24 +1,24 @@
 {
-  "name": "easynode",
-  "description": "web ssh",
+  "version": "1.0.3",
+  "name": "fan-webssh",
+  "description": "Fan-WebSSH - 多功能Linux服务器终端面板(webSSH&webSFTP)",
   "private": true,
   "workspaces": [
     "server",
-    "web",
-    "client"
+    "web"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chaos-zhu/easynode.git"
+    "url": "git+https://github.com/meimolihan/fan-webssh.git"
   },
   "keywords": [
     "vps",
     "node",
-    "easynode",
-    "chaos",
-    "chaoszhu"
+    "webssh",
+    "fan-webssh",
+    "meimolihan"
   ],
-  "author": "chaoszhu",
+  "author": "meimolihan",
   "license": "ISC",
   "scripts": {
     "dev": "concurrently -k \"yarn workspace web run dev\" \"yarn workspace server run local\"",
@@ -30,9 +30,9 @@
     "encrypt": "node ./local-script/encrypt-file.js"
   },
   "bugs": {
-    "url": "https://github.com/chaos-zhu/easynode/issues"
+    "url": "https://github.com/meimolihan/fan-webssh/issues"
   },
-  "homepage": "https://github.com/chaos-zhu/easynode#readme",
+  "homepage": "https://github.com/meimolihan/fan-webssh#readme",
   "resolutions": {
     "qs": "^6.14.1"
   },

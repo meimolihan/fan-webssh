@@ -81,12 +81,12 @@ jobs:
               exit 1
             fi
           done
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/easynode-release.jks
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/fan-webssh-release.jks
           cat > android/key.properties <<EOF
           storePassword=$ANDROID_STORE_PASSWORD
           keyPassword=$ANDROID_KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=easynode-release.jks
+          storeFile=fan-webssh-release.jks
           EOF
 
       - name: Build split APK
@@ -118,7 +118,7 @@ jobs:
           REF="${{ github.event.inputs.ref || github.ref_name }}"
           # artifact 名不允许 / : < > | * ? \ 等字符，统一替换为 -
           SAFE=$(printf '%s' "$REF" | tr -c 'A-Za-z0-9._-' '-')
-          echo "artifact=easynode-native-android-${SAFE}" >> "$GITHUB_OUTPUT"
+          echo "artifact=fan-webssh-native-android-${SAFE}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4

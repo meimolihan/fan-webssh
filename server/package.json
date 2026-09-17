@@ -1,8 +1,11 @@
 {
   "name": "server",
-  "version": "3.7.1",
-  "description": "easynode-server",
-  "bin": "./bin/www",
+  "version": "1.0.3",
+  "description": "fan-webssh-server",
+  "bin": {
+    "www": "./bin/www",
+    "fan-webssh": "./bin/fan-webssh.js"
+  },
   "scripts": {
     "local": "cross-env EXEC_ENV=local node dev-local.js",
     "prod": "cross-env EXEC_ENV=production nodemon index.js",

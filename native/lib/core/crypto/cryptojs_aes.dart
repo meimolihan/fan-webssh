@@ -13,7 +13,7 @@ import 'package:pointycastle/export.dart';
 ///
 ///     "Salted__" (8 bytes ASCII) | salt (8 bytes) | ciphertext (AES-256-CBC, PKCS#7)
 ///
-/// The EasyNode server side uses `crypto-js` to decrypt — matching this exact
+/// The Fan-WebSSH server side uses `crypto-js` to decrypt — matching this exact
 /// format is required for `/add-ssh` / `/update-ssh` / `/pwd` / `/proxy` POSTs
 /// that carry secrets encrypted with a one-time tempKey.
 class CryptoJsAes {

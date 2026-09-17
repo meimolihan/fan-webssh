@@ -1,7 +1,7 @@
 {
   "app": {
-    "bundleName": "io.github.chaoszhu.easynode_native",
-    "vendor": "easynode_native",
+    "bundleName": "io.github.meimolihan.fanwebssh_native",
+    "vendor": "fan_webssh_native",
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "icon": "$media:app_icon",

@@ -688,7 +688,7 @@ const props = defineProps({
 const { proxy: { $message, $messageBox, $store } } = getCurrentInstance()
 
 // 列配置
-const COLUMNS_CONFIG_KEY = 'easynode_sftp_columns_config'
+const COLUMNS_CONFIG_KEY = 'fan-webssh_sftp_columns_config'
 const availableColumns = [
   { key: 'size', label: '大小', width: 70, defaultShow: true },
   { key: 'modifyTime', label: '修改时间', width: 80, defaultShow: true },
@@ -713,7 +713,7 @@ const showColumnsConfig = ref(false)
 
 // 路径 & 隐藏文件显示
 const currentPath = ref('/')
-const SHOW_HIDDEN_KEY = 'easynode_show_hidden_files'
+const SHOW_HIDDEN_KEY = 'fan-webssh_show_hidden_files'
 const showHidden = ref(JSON.parse(localStorage.getItem(SHOW_HIDDEN_KEY) ?? 'true'))
 watch(showHidden, (val) => {
   localStorage.setItem(SHOW_HIDDEN_KEY, JSON.stringify(val))
@@ -921,7 +921,7 @@ const suggestionCacheFiles = JSON.parse(localStorage.getItem('sftp_create_file_c
 const suggestionFiles = ref([...new Set([...suggestionCacheFiles, ...defaultFiles,]),])
 
 const defaultFolders = [
-  'easynode',
+  'fan-webssh',
   'docker',
   'k8s',
   'nginx',

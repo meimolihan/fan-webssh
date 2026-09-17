@@ -5994,7 +5994,7 @@
                       "type": "text",
                       "id": "tkjjR",
                       "fill": "$font-primary",
-                      "content": "EasyNode",
+                      "content": "Fan-WebSSH",
                       "fontFamily": "Inter",
                       "fontSize": 24,
                       "fontWeight": "700"
@@ -9915,7 +9915,7 @@
                           "type": "text",
                           "id": "Ahwat",
                           "fill": "$primary",
-                          "content": "easynode",
+                          "content": "fan-webssh",
                           "fontFamily": "Inter",
                           "fontSize": 13,
                           "fontWeight": "500"
@@ -11056,7 +11056,7 @@
                       "type": "text",
                       "id": "YqZk3",
                       "fill": "$font-muted",
-                      "content": "/root/easynode/docker-compose.yml",
+                      "content": "/root/fan-webssh/docker-compose.yml",
                       "fontFamily": "JetBrains Mono",
                       "fontSize": 10,
                       "fontWeight": "normal"
@@ -11463,7 +11463,7 @@
                           "type": "text",
                           "id": "RzAfh",
                           "fill": "#9CDCFE",
-                          "content": "easynode",
+                          "content": "fan-webssh",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -11515,7 +11515,7 @@
                           "type": "text",
                           "id": "jODWn",
                           "fill": "#CE9178",
-                          "content": " chaoszhu/easynode:latest",
+                          "content": " meimolihan/fan-webssh:latest",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -11558,7 +11558,7 @@
                           "type": "text",
                           "id": "RWmHJ",
                           "fill": "#CE9178",
-                          "content": " easynode",
+                          "content": " fan-webssh",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -11797,7 +11797,7 @@
                           "type": "text",
                           "id": "EqwIY",
                           "fill": "#CE9178",
-                          "content": "/root/easynode/db:/easynode/app/db",
+                          "content": "/root/fan-webssh/db:/fan-webssh/app/db",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -11856,7 +11856,7 @@
                           "type": "text",
                           "id": "CvQVg",
                           "fill": "#CE9178",
-                          "content": "easynode-net",
+                          "content": "fan-webssh-net",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -11938,7 +11938,7 @@
                           "type": "text",
                           "id": "k80WWW",
                           "fill": "#9CDCFE",
-                          "content": "easynode-net",
+                          "content": "fan-webssh-net",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -12271,7 +12271,7 @@
                       "fill": "$font-muted",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "/root/easynode/static/img",
+                      "content": "/root/fan-webssh/static/img",
                       "fontFamily": "JetBrains Mono",
                       "fontSize": 10,
                       "fontWeight": "normal"
@@ -18420,7 +18420,7 @@
                               "fill": "$accent-soft",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "https://easynode.local:8082",
+                              "content": "https://fan-webssh.local:8082",
                               "fontFamily": "JetBrains Mono",
                               "fontSize": 11,
                               "fontWeight": "500"
@@ -22409,7 +22409,7 @@
                           "fill": "$font-secondary",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
-                          "content": "iOS 17.4 · EasyNode App",
+                          "content": "iOS 17.4 · Fan-WebSSH App",
                           "fontFamily": "Inter",
                           "fontSize": 12,
                           "fontWeight": "500"

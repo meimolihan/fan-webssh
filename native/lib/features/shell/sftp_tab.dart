@@ -1456,7 +1456,7 @@ class _SftpCreateDialog extends StatefulWidget {
   ];
 
   static const _defaultFolders = [
-    'easynode',
+    'fan-webssh',
     'docker',
     'k8s',
     'nginx',

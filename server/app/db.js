@@ -49,7 +49,7 @@ async function initKeyDB() {
 
   // 在控制台打印随机生成的账号密码
   logger.info('========================================')
-  logger.info('EasyNode 默认登录凭据 (请及时更改):')
+  logger.info('Fan-WebSSH 默认登录凭据 (请及时更改):')
   logger.info(`用户名: ${ randomUsername }`)
   logger.info(`密码: ${ randomPassword }`)
   logger.info('========================================')

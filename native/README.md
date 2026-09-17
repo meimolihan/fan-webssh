@@ -1,6 +1,6 @@
-# EasyNode Native
+# Fan-WebSSH Native
 
-EasyNode 的 Flutter Native App，复用现有后端 (`/api/v1`)，在原生端上提供服务器列表、SSH 终端、SFTP 文件管理、脚本库、账户安全等能力。App 自身不打包后端地址，登录时由用户填写。
+Fan-WebSSH 的 Flutter Native App，复用现有后端 (`/api/v1`)，在原生端上提供服务器列表、SSH 终端、SFTP 文件管理、脚本库、账户安全等能力。App 自身不打包后端地址，登录时由用户填写。
 
 ## 技术栈
 
@@ -16,7 +16,7 @@ EasyNode 的 Flutter Native App，复用现有后端 (`/api/v1`)，在原生端�
 ```
 native/
 ├── lib/
-│   ├── main.dart                   # 入口，调用 EasyNodeApp.bootstrap()
+│   ├── main.dart                   # 入口，调用 FanWebsshApp.bootstrap()
 │   ├── app.dart                    # 启动装配、ProviderScope override、登录态路由
 │   ├── core/
 │   │   ├── api/                    # ApiClient / Cookie / 通用错误
@@ -44,7 +44,7 @@ native/
 
 ### 启动链路
 
-1. `main.dart` 调用 `EasyNodeApp.bootstrap()`。
+1. `main.dart` 调用 `FanWebsshApp.bootstrap()`。
 2. `bootstrap()` 内同步初始化 `AppStorage` / `SecureAppStorage` / `SessionCookieStore`，读取已保存的 token、session cookie、deviceId。
 3. 若三者齐全则尝试预拉服务端公钥并构造 `AuthState`，失败时清理本地登录态。
 4. 通过 `ProviderScope.overrides` 把上述存储与 `AuthNotifier` 注入根作用域。

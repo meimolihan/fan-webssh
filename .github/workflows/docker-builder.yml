@@ -35,8 +35,8 @@ jobs:
         push: true
         platforms: linux/amd64,linux/arm64
         tags: |
-          chaoszhu/easynode:${{ github.event.release.tag_name || inputs.tag_name }}
-          chaoszhu/easynode:latest
+          meimolihan/fan-webssh:${{ github.event.release.tag_name || inputs.tag_name }}
+          meimolihan/fan-webssh:latest
 
     # - name: Clean up post-build
     #   run: docker system prune -af

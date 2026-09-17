@@ -504,7 +504,7 @@ class _LoginHero extends ConsumerWidget {
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => launchUrl(
-                  Uri.parse('https://github.com/chaos-zhu/easynode'),
+                  Uri.parse('https://github.com/meimolihan/fan-webssh'),
                   mode: LaunchMode.externalApplication,
                 ),
                 child: Icon(

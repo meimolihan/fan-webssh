@@ -1,11 +1,11 @@
 {
-    "name": "EasyNode",
-    "short_name": "EasyNode",
+    "name": "Fan-WebSSH",
+    "short_name": "Fan-WebSSH",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#FFFFFF",
-    "description": "EasyNode native app.",
+    "description": "Fan-WebSSH native app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -2,7 +2,7 @@
 /// will fall back to English at runtime.
 const Map<String, String> stringsZh = {
   // App
-  'app.title': 'EasyNode',
+  'app.title': 'Fan-WebSSH',
   'app.subtitle': '移动端终端访问',
 
   // Common
