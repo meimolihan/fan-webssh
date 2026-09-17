@@ -428,6 +428,12 @@ if [ -z "${DATA_DIR}" ]; then
 else
   printf "  %-14s %s\n" "${gl_lan}数据目录${reset}" "${gl_bai}${DATA_DIR}${reset}（参数指定）"
 fi
+
+# 数据目录不得与安装目录相同，否则 app/db 软链将自引用（环形），自动纠正为 app/db
+if [ "${DATA_DIR}" = "${APP_DIR}" ] || [ "${DATA_DIR}" = "${APP_DIR}/" ]; then
+  printf "  %s\n" "${gl_huang}[提示]${reset} 数据目录不能与安装目录相同，已自动使用 ${gl_bai}${APP_DIR}/app/db${reset}"
+  DATA_DIR="${APP_DIR}/app/db"
+fi
 DATA_DIR="${DATA_DIR:-$DEFAULT_DATA_DIR}"
 
 # source repo / binary install
@@ -645,6 +651,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# KillMode=process：systemctl stop 只终止主 node 进程，不波及面板 spawn 的备份/还原脚本
+KillMode=process
 ExecStart=${EXEC_START}
 WorkingDirectory=${APP_DIR}
 Environment=HTTP_PORT=${PORT}
@@ -654,6 +662,8 @@ Environment=GUACD_PORT=4822
 Environment=TZ=Asia/Shanghai
 Restart=on-failure
 RestartSec=3
+# 面板 stop 缓慢时快速收敛，避免备份/还原时 systemctl stop 长时间阻塞
+TimeoutStopSec=20
 
 [Install]
 WantedBy=multi-user.target

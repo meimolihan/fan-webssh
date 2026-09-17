@@ -120,13 +120,14 @@ const startJob = (cfg, scriptName, args) => {
 
   // 备份/还原脚本会执行 systemctl stop 本服务；若脚本由面板进程直接 spawn，
   // 它会落在本服务同一个 cgroup 内，stop 会把脚本自身一并终止（任务中途夭折）。
-  // 因此优先以 systemd-run --scope 将脚本放入独立 transient scope，脱离服务 cgroup。
+  // 因此优先以 systemd-run 创建独立 transient service（system.slice 顶层 cgroup），
+  // 完全脱离本服务的 cgroup，systemctl stop 不会波及脚本。
   const bin = '/usr/bin/bash'
   const useScope = isSystemdAvailable() && fs.existsSync('/usr/bin/systemd-run')
   let child
   let scoped = null
   if (useScope) {
-    scoped = spawnDetached('systemd-run', ['--scope', '--quiet', '--', bin, scriptPath, ...args])
+    scoped = spawnDetached('systemd-run', ['--quiet', '--unit', `fan-webssh-job-${ jobId }`, '--', bin, scriptPath, ...args])
     child = scoped
     scoped.on('error', () => {
       // systemd-run 不可用/受限时回退为直接执行

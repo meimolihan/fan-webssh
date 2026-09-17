@@ -68,8 +68,6 @@ echo -e "${gl_huang}保存目录：${gl_lv}${BACKUP_DIR}${gl_bai}"
 echo -e "${gl_huang}保留数量：${gl_lv}${KEEP_NUM}${gl_bai}"
 echo -e "${gl_huang}数据目录：${gl_lv}${DATA_DIR}${gl_bai}"
 
-command -v systemctl >/dev/null 2>&1 || { echo -e "${gl_hong}❌ 未检测到 systemctl，无法备份 services${gl_bai}"; exit 1; }
-
 [ -d "${DATA_DIR}" ] || { echo -e "${gl_hong}❌ 数据目录不存在: ${DATA_DIR}${gl_bai}"; exit 1; }
 
 # 文件名精确到秒 YYYY-MM-DD_HH-MM-SS
@@ -78,17 +76,13 @@ BACKUP_FILE="${BACKUP_DIR}/FanWebSSH-${NOW}.tar.gz"
 
 mkdir -p "${BACKUP_DIR}"
 
-echo -e ""
-echo -e "${gl_huang}>>> 停止 ${SERVICE} 服务${gl_bai}"
-systemctl stop ${SERVICE}
-
+# 在线备份：不停止服务，避免面板自身被 systemctl stop 连带终止（面板与脚本同属系统服务）
 echo -e ""
 echo -e "${gl_lan}>>> 执行备份：${BACKUP_FILE}${gl_bai}"
 if tar -czf "${BACKUP_FILE}" -C "${DATA_DIR}" .; then
     echo -e "${gl_lv}>>> 备份完成：${BACKUP_FILE}${gl_bai}"
 else
-    echo -e "${gl_hong}❌ 备份失败，正在恢复服务${gl_bai}"
-    systemctl start ${SERVICE}
+    echo -e "${gl_hong}❌ 备份失败${gl_bai}"
     exit 1
 fi
 
@@ -110,26 +104,6 @@ else
     echo -e "${gl_lv}>>> 无过期备份需要删除${gl_bai}"
 fi
 
-echo -e ""
-echo -e "${gl_huang}>>> 启动 ${SERVICE} 服务${gl_bai}"
-systemctl start ${SERVICE}
-
-sleep 2
-STATUS=$(systemctl is-active ${SERVICE})
-case "${STATUS}" in
-    active)
-        echo -e "${gl_lv}✅ 服务状态：运行中${gl_bai}"
-        ;;
-    inactive)
-        echo -e "${gl_hong}❌ 服务状态：已停止${gl_bai}"
-        ;;
-    failed)
-        echo -e "${gl_hong}❌ 服务状态：启动失败${gl_bai}"
-        ;;
-    *)
-        echo -e "${gl_huang}⚠️ 服务状态：${STATUS}${gl_bai}"
-        ;;
-esac
 echo -e "${gl_bufan}————————————————————————————————————————————————${gl_bai}"
 echo -e "${gl_lv}✔ 备份完成：${BACKUP_FILE}${gl_bai}"
 echo -e "${gl_huang}还原命令：bash scripts/fan-webssh_recover.sh${gl_bai}"
