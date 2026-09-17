@@ -260,13 +260,13 @@ info "✅ 已创建 Release，将自动构建 Docker Hub 镜像（docker-builder
 
 # ── 仅在显式运行本脚本时触发 binary-release Workflow ────────
 if command -v gh >/dev/null 2>&1; then
-    if gh workflow run binary-release.yml -R meimolihan/fan-webssh --ref main 2>/dev/null; then
+    if gh workflow run release.yml -R meimolihan/fan-webssh --ref main 2>/dev/null; then
         info "已触发 Binary Release 工作流（使用 gh CLI）"
     else
-        info "gh CLI 触发工作流失败，如需手动触发请运行: gh workflow run binary-release.yml -R meimolihan/fan-webssh"
+        info "gh CLI 触发工作流失败，如需手动触发请运行: gh workflow run release.yml -R meimolihan/fan-webssh"
     fi
 else
-    info "未检测到 gh CLI，如需手动触发工作流，请运行: gh workflow run binary-release.yml -R meimolihan/fan-webssh"
+    info "未检测到 gh CLI，如需手动触发工作流，请运行: gh workflow run release.yml -R meimolihan/fan-webssh"
 fi
 
 info "查看发布结果: gh release view ${TAG}"
