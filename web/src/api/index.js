@@ -222,6 +222,9 @@ export default {
   systemRecover(data) {
     return axios({ url: '/system/recover', method: 'post', data })
   },
+  systemDeleteBackup(data) {
+    return axios({ url: '/system/delete-backup', method: 'post', data })
+  },
   getSystemJob(params) {
     return axios({ url: '/system/job', method: 'get', params })
   }

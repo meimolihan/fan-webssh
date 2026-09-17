@@ -54,10 +54,18 @@ const execFileAsync = (cmd, args, opts = {}) =>
     })
   })
 
+// 去除终端 ANSI 转义序列（颜色/样式码），脚本在真实终端保留颜色，
+// 面板"执行日志"为纯文本展示，需剥离后渲染，避免出现 \x1b[38;5;xxm 乱码。
+const stripAnsi = (str = '') =>
+  str
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+    .replace(/\x1b[()][0-9A-Za-z]/g, '')
+
 const readTail = (file, lines = MAX_OUTPUT_LINES) => {
   try {
     const content = fs.readFileSync(file, 'utf8')
-    const arr = content.split('\n').filter(line => line.trim() !== '')
+    const arr = stripAnsi(content).split('\n').filter(line => line.trim() !== '')
     return arr.slice(-lines).join('\n')
   } catch {
     return ''
@@ -233,6 +241,24 @@ const systemRecover = async ({ res, request }) => {
   }
 }
 
+const systemDeleteBackup = async ({ res, request }) => {
+  const cfg = readSystemConfig()
+  const { fileName } = request.body || {}
+  if (!fileName) return res.fail({ msg: '缺少备份文件名' })
+  const name = path.basename(String(fileName))
+  if (!/^FanWebSSH-.*\.tar\.gz$/.test(name)) return res.fail({ msg: '非法的备份文件名' })
+  const target = path.join(cfg.backupDir, name)
+  if (!fs.existsSync(target)) return res.fail({ msg: '备份文件不存在' })
+  try {
+    fs.unlinkSync(target)
+    logger.info(`Deleted backup file: ${ target }`)
+    res.success({ data: { backups: listBackupFiles(cfg.backupDir) }, msg: '备份已删除' })
+  } catch (error) {
+    logger.error('Failed to delete backup:', error.message)
+    res.fail({ msg: `删除失败：${ error.message }` })
+  }
+}
+
 const getSystemJob = async ({ res, request }) => {
   const cfg = readSystemConfig()
   const { jobId, logPath } = request.query || {}
@@ -266,5 +292,6 @@ module.exports = {
   systemRestart,
   systemBackup,
   systemRecover,
+  systemDeleteBackup,
   getSystemJob
 }

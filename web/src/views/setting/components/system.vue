@@ -188,7 +188,7 @@
             </el-table-column>
             <el-table-column
               label="操作"
-              width="80"
+              width="120"
               fixed="right"
             >
               <template #default="{ row }">
@@ -199,6 +199,15 @@
                   @click="handleRecover(row)"
                 >
                   还原
+                </el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  :disabled="!canBackup"
+                  @click="handleDelete(row)"
+                >
+                  删除
                 </el-button>
               </template>
             </el-table-column>
@@ -404,6 +413,32 @@ const handleRecover = async (row) => {
   } catch (error) {
     console.error('启动还原失败:', error)
     $message.error('启动还原失败')
+  }
+}
+
+const handleDelete = async (row) => {
+  try {
+    await $messageBox.confirm(
+      `确定要删除备份 ${ row.name } 吗？删除后不可恢复。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return
+  }
+
+  try {
+    const { msg, data } = await $api.systemDeleteBackup({ fileName: row.name })
+    $message.success(msg || '备份已删除')
+    if (data && Array.isArray(data.backups)) info.backups = data.backups
+    else loadInfo()
+  } catch (error) {
+    console.error('删除备份失败:', error)
+    $message.error(error?.response?.data?.msg || '删除备份失败')
   }
 }
 

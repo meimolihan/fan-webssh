@@ -76,6 +76,27 @@ MIN_NODE_MAJOR=18
 GITHUB_REPO="https://github.com/meimolihan/fan-webssh.git"
 GITHUB_BIN_REPO="meimolihan/fan-webssh"
 
+# ================== GitHub 下载加速镜像 ==================
+# 原始 GitHub 地址超时/失败时，按下列顺序依次尝试（末尾必须带斜杠）
+GITHUB_MIRRORS=(
+  "https://ghfast.top/"
+  "https://ghproxy.net/"
+  "https://gh.xxooo.cf/"
+  "https://v6.gh-proxy.org/"
+  "https://githubproxy.cc/"
+)
+
+# 根据原始 GitHub URL 生成候选地址列表：原始地址优先，然后依次套用各镜像
+make_url_candidates() {
+  local github_url="$1"
+  local p
+  printf '%s\n' "$github_url"
+  for p in "${GITHUB_MIRRORS[@]}"; do
+    printf '%s\n' "${p}${github_url}"
+  done
+}
+# ==========================================================
+
 # 经 curl|bash 远程执行时，SCRIPT_DIR 指向 bash 抽取的临时目录，本地源码仓库
 # 需按常见目录回退探测（当前目录 / 上一级目录 / 上级的上级），否则会误判"无本地源码"。
 resolve_local_src() {
@@ -108,8 +129,6 @@ BINARY_MODE="auto"
 INSTALL_YES=0
 
 # ---- bootstrap: support `bash -c "$(curl ...)" -p ... -d ...` ----
-# In `bash -c "script" args` the first arg becomes $0, so a flag passed right
-# after the script string would be invisible to the normal $1.. parsing below.
 case "$0" in
   -*) set -- "$0" "$@" ;;
 esac
@@ -291,23 +310,23 @@ install_binary() {
 
   tmp="$(mktemp)"
   hdr="${tmp}.hdr"
-  local candidates=(
-    "https://github.com/${GITHUB_BIN_REPO}/${url_path}"
-    "https://git.221022.xyz/https://github.com/${GITHUB_BIN_REPO}/${url_path}"
-    "https://ghfast.top/https://github.com/${GITHUB_BIN_REPO}/${url_path}"
-  )
+
+  # 候选地址：原始 GitHub + 各镜像（顺序由 GITHUB_MIRRORS 决定）
+  local candidates=()
+  mapfile -t candidates < <(make_url_candidates "https://github.com/${GITHUB_BIN_REPO}/${url_path}")
+
   for url in "${candidates[@]}"; do
     skip "尝试下载 ${gl_bai}${url}${reset}"
     rm -f "${tmp}" "${hdr}"
     DL_FAIL="n"
     if [ "${DL_CURL}" = "y" ]; then
       if command -v timeout >/dev/null 2>&1; then
-        timeout 300 curl -fsSL "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
+        timeout 120 curl -fsSL --connect-timeout 10 --max-time 120 "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
       else
-        curl -fsSL "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
+        curl -fsSL --connect-timeout 10 --max-time 120 "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
       fi
     else
-      wget -qO "${tmp}" --timeout=300 "${url}" 2>/dev/null || DL_FAIL="y"
+      wget -qO "${tmp}" --timeout=120 --tries=1 "${url}" 2>/dev/null || DL_FAIL="y"
     fi
     if [ "${DL_FAIL}" = "y" ] || [ ! -s "${tmp}" ]; then
       printf "  %s\n" "${gl_huang}[警告]${reset}" "下载失败：${url}"
@@ -347,17 +366,14 @@ install_binary() {
     mkdir -p "${APP_DIR}/scripts" 2>/dev/null || true
     local script_name="" raw_url=""
     for script_name in fan-webssh_backup.sh fan-webssh_recover.sh; do
-      local raw_candidates=(
-        "https://github.com/${GITHUB_BIN_REPO}/raw/main/scripts/${script_name}"
-        "https://git.221022.xyz/${GITHUB_BIN_REPO}/raw/main/scripts/${script_name}"
-        "https://ghfast.top/${GITHUB_BIN_REPO}/raw/main/scripts/${script_name}"
-      )
+      local raw_candidates=()
+      mapfile -t raw_candidates < <(make_url_candidates "https://github.com/${GITHUB_BIN_REPO}/raw/main/scripts/${script_name}")
       for raw_url in "${raw_candidates[@]}"; do
         DL_OK="n"
         if [ "${DL_CURL}" = "y" ]; then
-          curl -fsSL --connect-timeout 15 --max-time 60 "${raw_url}" > "${APP_DIR}/scripts/${script_name}" 2>/dev/null && DL_OK="y"
+          curl -fsSL --connect-timeout 10 --max-time 60 "${raw_url}" > "${APP_DIR}/scripts/${script_name}" 2>/dev/null && DL_OK="y"
         else
-          wget -qO "${APP_DIR}/scripts/${script_name}" --timeout=60 "${raw_url}" 2>/dev/null && DL_OK="y"
+          wget -qO "${APP_DIR}/scripts/${script_name}" --timeout=60 --tries=1 "${raw_url}" 2>/dev/null && DL_OK="y"
         fi
         if [ "${DL_OK}" = "y" ] && [ -s "${APP_DIR}/scripts/${script_name}" ] \
           && grep -q '^#!/bin/bash' "${APP_DIR}/scripts/${script_name}"; then
@@ -467,13 +483,12 @@ if [ "${INSTALL_METHOD}" = "source" ]; then
     TMP_ROOT="$(mktemp -d)"
     TMP_SRC="${TMP_ROOT}/fan-webssh"
 
-    # 候选仓库源：自定义 > GitHub 加速代理 > GitHub 主站（国内直连 GitHub 常超时）
-    REPO_CANDIDATES=(
-      "${FAN_WEBSSH_REPO:-}"
-      "https://git.221022.xyz/${GITHUB_REPO}"
-      "https://ghfast.top/${GITHUB_REPO}"
-      "${GITHUB_REPO}"
-    )
+    # 候选仓库源：自定义 > 原始 GitHub > 各镜像
+    REPO_CANDIDATES=()
+    [ -n "${FAN_WEBSSH_REPO:-}" ] && REPO_CANDIDATES+=("${FAN_WEBSSH_REPO}")
+    while IFS= read -r u; do
+      REPO_CANDIDATES+=("$u")
+    done < <(make_url_candidates "${GITHUB_REPO}")
 
     FETCHED="n"
     if command -v timeout >/dev/null 2>&1; then CLONE_TIMEOUT="timeout 90"; else CLONE_TIMEOUT=""; fi
@@ -495,16 +510,17 @@ if [ "${INSTALL_METHOD}" = "source" ]; then
 
     # 回退：下载源码压缩包并解压（无需 git，走与脚本下载一致的加速线路）
     if [ "${FETCHED}" != "y" ]; then
-      ARCHIVE_URLS=(
-        "https://git.221022.xyz/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
-        "https://ghfast.top/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
-        "https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
-        "https://codeload.github.com/meimolihan/fan-webssh/tar.gz/refs/heads/main"
-      )
+      ARCHIVE_URLS=()
+      while IFS= read -r u; do
+        ARCHIVE_URLS+=("$u")
+      done < <(make_url_candidates "https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz")
+      # 兜底：codeload 直链
+      ARCHIVE_URLS+=("https://codeload.github.com/meimolihan/fan-webssh/tar.gz/refs/heads/main")
+
       if command -v curl >/dev/null 2>&1; then
-        DL_CMD="curl -fsSL"
+        DL_CMD="curl -fsSL --connect-timeout 10 --max-time 120"
       elif command -v wget >/dev/null 2>&1; then
-        DL_CMD="wget -qO-"
+        DL_CMD="wget -qO- --timeout=120 --tries=1"
       else
         DL_CMD=""
       fi

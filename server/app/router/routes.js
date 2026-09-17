@@ -14,7 +14,7 @@ const { getTerminalConfig, saveTerminalConfig } = require('../controller/termina
 const { getServerListConfig, saveServerListConfig } = require('../controller/server-list-config')
 const { getSuspendedSessions, getTerminalSessionConfig, updateTerminalSessionConfig } = require('../controller/terminal')
 const { getNativeSshConnection } = require('../controller/native')
-const { getSystemInfo, systemStart, systemStop, systemRestart, systemBackup, systemRecover, getSystemJob } = require('../controller/system')
+const { getSystemInfo, systemStart, systemStop, systemRestart, systemBackup, systemRecover, systemDeleteBackup, getSystemJob } = require('../controller/system')
 
 const ssh = [
   {
@@ -421,6 +421,11 @@ const system = [
     method: 'post',
     path: '/system/recover',
     controller: systemRecover
+  },
+  {
+    method: 'post',
+    path: '/system/delete-backup',
+    controller: systemDeleteBackup
   },
   {
     method: 'get',
