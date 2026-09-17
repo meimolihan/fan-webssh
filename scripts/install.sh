@@ -481,6 +481,25 @@ else
   fi
 fi
 
+# 提取并打印首次初始化生成的随机账号密码（数据目录已存在时不会重新生成）
+print_initial_credentials() {
+  local creds="" user="" pass="" source=""
+  if [ "${USE_SYSTEMD}" = "y" ]; then
+    command -v journalctl >/dev/null 2>&1 && \
+      creds="$(journalctl -u "${APP_NAME}" --no-pager -n 300 2>/dev/null | grep -E '用户名: |密码: ' | tail -n 2)"
+  fi
+  if [ -z "${creds}" ] && [ -f "${DATA_DIR}/${APP_NAME}.log" ]; then
+    creds="$(grep -E '用户名: |密码: ' "${DATA_DIR}/${APP_NAME}.log" 2>/dev/null | tail -n 2)"
+  fi
+  user="$(printf '%s\n' "${creds}" | sed -n 's/.*用户名: //p' | tail -n 1 | tr -d '\r')"
+  pass="$(printf '%s\n' "${creds}" | sed -n 's/.*密码: //p' | tail -n 1 | tr -d '\r')"
+  [ -n "${user}" ] && [ -n "${pass}" ] || return 1
+  printf "  %s\n" "${gl_lv}✔ 首次登录凭据（请登录后立即修改）${reset}"
+  printf "  %-14s %s\n" "${gl_lan}用户名${reset}" "${gl_bai}${user}${reset}"
+  printf "  %-14s %s\n" "${gl_lan}密码${reset}" "${gl_bai}${pass}${reset}"
+  return 0
+}
+
 # 取第一个IPv4
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 [ -z "${IP}" ] && IP="<服务器IP>"
@@ -510,5 +529,11 @@ else
   printf "  %-14s %s\n" "${gl_lan}程序目录${reset}" "${gl_bai}${APP_DIR}${reset}"
   printf "  %s\n" "  ${gl_huang}注意：${reset}后台运行模式在系统重启后不会自动恢复。"
 fi
-printf "%s\n" "  ${gl_huang}注意：${reset}首次运行的用户名/密码为随机生成，请查看日志：${gl_bai}journalctl -u fan-webssh -n 50${reset}"
+
+# 等待服务完成数据库初始化后再读取凭据
+[ "${USE_SYSTEMD}" = "y" ] || sleep 2
+skip "读取首次登录凭据 ..."
+if ! print_initial_credentials; then
+  printf "%s\n" "  ${gl_huang}注意：${reset}未读取到初始化凭据（数据目录已存在时不会重新生成），可查看日志：${gl_bai}journalctl -u ${APP_NAME} -n 50${reset}"
+fi
 sep_line
