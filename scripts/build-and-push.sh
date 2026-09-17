@@ -1,10 +1,11 @@
 #!/bin/bash
 #
-# fan-webssh (Fan-WebSSH) - 发布脚本（触发 GitHub Actions 自动构建 Docker 镜像）
-# 不在本地编译任何产物：仅更新版本号、推送代码、打 v 开头 tag 并创建 GitHub Release。
-# 推送后由 GitHub Actions 自动完成镜像构建：
-#   - 推送 v* tag        -> .github/workflows/git-package-docker-publish.yml => GHCR(ghcr.io/meimolihan/fan-webssh)
-#   - Release published  -> .github/workflows/docker-builder.yml            => Docker Hub(meimolihan/fan-webssh)
+# fan-webssh (Fan-WebSSH) - 发布脚本（触发 GitHub Actions 单一发布流水线）
+# 不在本地编译任何产物：仅更新版本号、推送代码、打 v 开头 tag。
+# 推送后由 GitHub Actions 的 .github/workflows/release.yml 链式自动完成：
+#   [1] pkg 编译 linux amd64/arm64 二进制
+#   [2] 创建 GitHub Release 并附带 fan-webssh_linux_amd64 / fan-webssh_linux_arm64
+#   [3] 构建推送 Docker 镜像：Docker Hub + GHCR
 #
 # Usage:
 #   TAG(必填) 形如 v3.7.2; --yes 免交互; -m "备注" 可选发版说明
@@ -247,30 +248,9 @@ git push origin main
 
 git tag "${TAG}"
 git push origin "${TAG}"
-info "✅ 已推送 tag ${TAG}，将自动构建 GHCR 镜像（git-package-docker-publish.yml）"
-
-# ===================== 创建 GitHub Release（触发 Docker Hub 构建） =====================
-info "创建 GitHub Release ${TAG}"
-command -v gh >/dev/null 2>&1 || error "未安装 gh CLI，无法创建 Release（可手动在 GitHub 网页创建）"
-gh release create "${TAG}" \
-    --title "Fan-WebSSH ${TAG}" \
-    --notes-file RELEASE_NOTES.md \
-    || error "创建 Release 失败"
-info "✅ 已创建 Release，将自动构建 Docker Hub 镜像（docker-builder.yml）"
-
-# ── 仅在显式运行本脚本时触发 binary-release Workflow ────────
-if command -v gh >/dev/null 2>&1; then
-    if gh workflow run release.yml -R meimolihan/fan-webssh --ref main 2>/dev/null; then
-        info "已触发 Binary Release 工作流（使用 gh CLI）"
-    else
-        info "gh CLI 触发工作流失败，如需手动触发请运行: gh workflow run release.yml -R meimolihan/fan-webssh"
-    fi
-else
-    info "未检测到 gh CLI，如需手动触发工作流，请运行: gh workflow run release.yml -R meimolihan/fan-webssh"
-fi
+info "✅ 已推送 tag ${TAG}，将自动执行发布流水线（release.yml）"
 
 info "查看发布结果: gh release view ${TAG}"
 info "查看镜像: docker pull meimolihan/fan-webssh:${TAG}"
 
-beautify_gh_run "git-package-docker-publish.yml" "${TAG}" || true
-beautify_gh_run "docker-builder.yml" "${TAG}" || true
+beautify_gh_run "release.yml" "${TAG}" || true
