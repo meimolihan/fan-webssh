@@ -28,6 +28,7 @@ jobs:
   build-binaries:
     name: 编译二进制 (linux amd64 + arm64 + 内置前端)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       built: ${{ steps.pkg.outputs.built }}
     steps:
@@ -80,6 +81,7 @@ jobs:
     name: 发布 Release (附带二进制)
     needs: build-binaries
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
@@ -124,6 +126,7 @@ jobs:
     name: 构建推送 Docker 镜像 (Docker Hub + GHCR)
     needs: publish-release
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
@@ -172,6 +175,7 @@ jobs:
     name: 同步到 CNB 镜像仓库
     needs: build-docker
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
