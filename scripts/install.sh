@@ -85,6 +85,17 @@ GITHUB_MIRRORS=(
   "https://v6.gh-proxy.org/"
   "https://githubproxy.cc/"
 )
+# v6.gh-proxy.org 为纯 IPv6 代理：本机未配置 IPv6 地址时剔除，避免每次空等超时
+if [ ! -s /proc/net/if_inet6 ]; then
+  _no_v6=()
+  for _m in "${GITHUB_MIRRORS[@]}"; do
+    case "${_m}" in
+      *v6.gh-proxy.org*) continue ;;
+    esac
+    _no_v6+=("${_m}")
+  done
+  GITHUB_MIRRORS=("${_no_v6[@]}")
+fi
 
 # 根据原始 GitHub URL 生成候选地址列表：原始地址优先，然后依次套用各镜像
 make_url_candidates() {
@@ -317,17 +328,21 @@ install_binary() {
 
   for url in "${candidates[@]}"; do
     skip "尝试下载 ${gl_bai}${url}${reset}"
+    # 换链接 = 换源，清掉旧文件，避免残留文件污染判断
     rm -f "${tmp}" "${hdr}"
     DL_FAIL="n"
     if [ "${DL_CURL}" = "y" ]; then
       if command -v timeout >/dev/null 2>&1; then
-        timeout 120 curl -fsSL --connect-timeout 10 --max-time 120 "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
+        timeout 120 curl -fsSL --connect-timeout 10 --max-time 120 \
+          -o "${tmp}" -D "${hdr}" "${url}" 2>/dev/null || DL_FAIL="y"
       else
-        curl -fsSL --connect-timeout 10 --max-time 120 "${url}" -D "${hdr}" > "${tmp}" 2>/dev/null || DL_FAIL="y"
+        curl -fsSL --connect-timeout 10 --max-time 120 \
+          -o "${tmp}" -D "${hdr}" "${url}" 2>/dev/null || DL_FAIL="y"
       fi
     else
       wget -qO "${tmp}" --timeout=120 --tries=1 "${url}" 2>/dev/null || DL_FAIL="y"
     fi
+
     if [ "${DL_FAIL}" = "y" ] || [ ! -s "${tmp}" ]; then
       printf "  %s\n" "${gl_huang}[警告]${reset}" "下载失败：${url}"
       continue
