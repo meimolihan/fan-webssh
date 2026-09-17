@@ -1,0 +1,51 @@
+name: 🎯 Binary Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: 🛎️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Install pkg (Node.js binary compiler)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+        # pkg 需要免费令牌；如未设置 PKG_TOKEN 将跳过编译并在 Release 中标注
+        env:
+          PKG_TOKEN: ${{ secrets.PKG_TOKEN }}
+
+      - name: 🔨 Compile fan-webssh binary
+        if: env.PKG_TOKEN != ''
+        run: |
+          npm i -g pkg
+          pkg -t node18-linux-x64 server/bin/fan-webssh.js -o fan-webssh
+
+      - name: 📤 Create Release
+        if: env.PKG_TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: fan-webssh v${{ github.run_number }}
+          file: fan-webssh
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ⚠️ No pkg token (skip binary)
+        if: env.PKG_TOKEN == ''
+        run: |
+          echo "❌ PKG_TOKEN 未设置，跳过二进制编译"
+          echo "要启用二进制发布，请在仓库 Settings → Secrets → Actions 中添加 PKG_TOKEN（从 npmjs.com/pkg 获取）"
+          echo "或手动运行：npm i -g pkg && pkg -t node18-linux-x64 server/bin/fan-webssh.js -o fan-webssh"
