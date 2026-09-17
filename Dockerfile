@@ -1,10 +1,8 @@
-# syntax=docker/dockerfile:1
 FROM node:22.16-alpine3.20 AS builder_web
 WORKDIR /fan-webssh/web
 COPY web/package.json ./
 COPY yarn.lock ./
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
-    yarn install
+RUN yarn install
 COPY ./web .
 RUN yarn build
 
@@ -12,8 +10,7 @@ FROM node:22.16-alpine3.20 AS builder_server
 WORKDIR /fan-webssh/server
 COPY server/package.json ./
 COPY yarn.lock ./
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
-    yarn install --production=true
+RUN yarn install --production=true
 COPY --from=builder_web /fan-webssh/web/dist ./app/static
 COPY ./server .
 
