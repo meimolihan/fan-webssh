@@ -15,6 +15,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency:
+  group: ghcr-${{ github.ref_name || github.event.inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -24,6 +28,7 @@ jobs:
 
     steps:
       - name: Validate tag format
+        if: github.event_name == 'workflow_dispatch'
         run: |
           if [[ ! "${{ github.event.inputs.tag }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
             echo "错误: 标签格式无效，必须以 'v' 开头，例如: v1.0.0"
@@ -33,7 +38,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: refs/tags/${{ github.event.inputs.tag }}
+          ref: ${{ github.event_name == 'push' && github.ref || format('refs/tags/{0}', github.event.inputs.tag) }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -60,7 +65,7 @@ jobs:
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64

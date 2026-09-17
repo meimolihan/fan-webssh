@@ -9,6 +9,11 @@ on:
         description: 'Tag Name (leave empty for default latest)'
         required: false
         default: 'latest'
+
+concurrency:
+  group: dockerhub-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -18,14 +23,17 @@ jobs:
     - name: Check out the repository
       uses: actions/checkout@v4
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
@@ -34,9 +42,8 @@ jobs:
         file: ./Dockerfile
         push: true
         platforms: linux/amd64,linux/arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
         tags: |
           meimolihan/fan-webssh:${{ github.event.release.tag_name || inputs.tag_name }}
           meimolihan/fan-webssh:latest
-
-    # - name: Clean up post-build
-    #   run: docker system prune -af

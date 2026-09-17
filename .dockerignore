@@ -13,3 +13,15 @@ plan.md
 .env.local
 .git
 doc_images
+.github
+Dockerfile
+docker-compose.yml
+native
+scripts
+cache
+data
+CHANGELOG.md
+Q&A.md
+README.md
+.eslintcache
+*.tsbuildinfo
