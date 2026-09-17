@@ -28,7 +28,6 @@ jobs:
   build-binaries:
     name: 编译二进制 (linux amd64 + arm64 + 内置前端)
     runs-on: ubuntu-latest
-    needs: publish-release
     outputs:
       built: ${{ steps.pkg.outputs.built }}
     steps:
@@ -180,6 +179,7 @@ jobs:
           ref: ${{ github.event_name == 'push' && github.ref || format('refs/tags/{0}', github.event.inputs.tag) }}
 
       - name: Sync to CNB Repository
+        if: ${{ secrets.CNB_ACCESS_TOKEN != '' }}
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:${{ github.workspace }} \
@@ -191,3 +191,7 @@ jobs:
             -e PLUGIN_FORCE="true" \
             -e PLUGIN_PUSH_TAGS="true" \
             tencentcom/git-sync
+
+      - name: Skip CNB sync
+        if: ${{ secrets.CNB_ACCESS_TOKEN == '' }}
+        run: echo "::warning::CNB_ACCESS_TOKEN 未配置，跳过同步到 CNB 镜像仓库"
