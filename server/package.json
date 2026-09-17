@@ -69,5 +69,11 @@
     "eslint": "^9.26.0",
     "globals": "^17.6.0",
     "nodemon": "^3.1.4"
+  },
+  "pkg": {
+    "assets": [
+      "app/template/*.html",
+      "app/static/**/*"
+    ]
   }
 }

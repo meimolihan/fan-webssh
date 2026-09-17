@@ -100,6 +100,7 @@ PORT=""
 DATA_DIR=""
 SRC_DIR=""
 SRC_DIR_EXPLICIT=0
+BINARY_MODE="auto"
 INSTALL_YES=0
 
 # ---- bootstrap: support `bash -c "$(curl ...)" -p ... -d ...` ----
@@ -128,8 +129,14 @@ while [ "$#" -gt 0 ]; do
       SRC_DIR="$1"
       SRC_DIR_EXPLICIT=1
       ;;
+    -b|--binary)
+      BINARY_MODE="force"
+      ;;
     -y|--yes)
       INSTALL_YES=1
+      ;;
+    -b|--binary)
+      BINARY_MODE="force"
       ;;
     -h|--help)
       printf "%s\n" "${gl_lan}fan-webssh${reset} - ${gl_bai}多功能Linux服务器终端面板(webSSH&webSFTP) 安装脚本${reset}"
@@ -372,6 +379,7 @@ ok "正在安装 ${gl_bai}${APP_NAME}${reset} 程序 ${gl_hong}.${gl_huang}.${gl
 
 # 1) 拷贝 server 源码到安装目录
 mkdir -p "${APP_DIR}"
+rm -f "${APP_DIR}/app/db"
 cp -rf "${SRC_DIR}/server/." "${APP_DIR}/"
 rm -f "${APP_DIR}/.env"
 ok "已拷贝服务端源码至 ${gl_bai}${APP_DIR}${reset}"
