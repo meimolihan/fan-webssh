@@ -21,7 +21,7 @@ concurrency:
 
 env:
   RELEASE_TAG: ${{ github.ref_name || github.event.inputs.tag }}
-  DOCKERHUB_IMAGE: meimolihan/fan-webssh
+  DOCKERHUB_IMAGE: mobufan/fan-webssh
   GHCR_IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
@@ -101,7 +101,7 @@ jobs:
               echo "Fan-WebSSH ${{ env.RELEASE_TAG }}"
               echo ""
               echo "Docker 镜像："
-              echo "  - Docker Hub：docker pull meimolihan/fan-webssh:${{ env.RELEASE_TAG }}"
+              echo "  - Docker Hub：docker pull mobufan/fan-webssh:${{ env.RELEASE_TAG }}"
               echo "  - GHCR：docker pull ghcr.io/meimolihan/fan-webssh:${{ env.RELEASE_TAG }}"
             } > _release_body.md
           fi

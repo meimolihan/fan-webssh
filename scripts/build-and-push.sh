@@ -236,7 +236,7 @@ info "写入发版备注 RELEASE_NOTES.md"
     printf '\n'
   fi
   printf 'Docker 镜像：\n'
-  printf '  - Docker Hub：docker pull meimolihan/fan-webssh:%s\n' "${TAG}"
+  printf '  - Docker Hub：docker pull mobufan/fan-webssh:%s\n' "${TAG}"
   printf '  - GHCR：docker pull ghcr.io/meimolihan/fan-webssh:%s\n' "${TAG}"
 } > RELEASE_NOTES.md
 
@@ -251,6 +251,6 @@ git push origin "${TAG}"
 info "✅ 已推送 tag ${TAG}，将自动执行发布流水线（release.yml）"
 
 info "查看发布结果: gh release view ${TAG}"
-info "查看镜像: docker pull meimolihan/fan-webssh:${TAG}"
+info "查看镜像: docker pull mobufan/fan-webssh:${TAG}"
 
 beautify_gh_run "release.yml" "${TAG}" || true

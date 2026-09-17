@@ -13,8 +13,8 @@ _✨ 一个多功能Linux服务器终端面板(webSSH&webSFTP) ✨_
   <a href="https://github.com/meimolihan/fan-webssh/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/meimolihan/fan-webssh/docker-builder.yml?branch=main" alt="deployment status">
   </a>
-  <a href="https://hub.docker.com/repository/docker/meimolihan/fan-webssh">
-    <img src="https://img.shields.io/docker/pulls/meimolihan/fan-webssh?color=brightgreen" alt="docker pull">
+  <a href="https://hub.docker.com/repository/docker/mobufan/fan-webssh">
+    <img src="https://img.shields.io/docker/pulls/mobufan/fan-webssh?color=brightgreen" alt="docker pull">
   </a>
   <a href="https://github.com/meimolihan/fan-webssh/releases/latest">
     <img src="https://img.shields.io/github/downloads/meimolihan/fan-webssh/total?color=brightgreen&include_prereleases" alt="release">
