@@ -10,6 +10,8 @@
 #   参数静默安装（-p 端口 / -d 数据目录 / -s 源码目录）:
 #     bash scripts/install.sh -p 8082 -d /var/lib/fan-webssh /data/fan-webssh.repo
 #     bash scripts/install.sh -p 8082 -d /var/lib/fan-webssh -s /tmp/fan-webssh
+#   国内网络可用镜像仓库:
+#     FAN_WEBSSH_REPO=https://ghfast.top/https://github.com/meimolihan/fan-webssh.git bash scripts/install.sh -y
 
 set -euo pipefail
 
@@ -138,7 +140,8 @@ while [ "$#" -gt 0 ]; do
       printf "  %-13s %s\n" "${gl_bai}-y, --yes${reset}" "免交互，未指定项全部使用默认值"
       printf "  %-13s %s\n" "${gl_bai}-h, --help${reset}" "显示本帮助"
       printf "%s\n" "${gl_hui}指定任意参数即进入静默安装；不带参数则为交互式安装。${reset}"
-      printf "%s\n" "${gl_hui}未指定 -s 且本地无源码仓库时，自动从 GitHub 克隆最新源码进行编译安装。${reset}"
+      printf "%s\n" "${gl_hui}未指定 -s 且本地无源码仓库时，自动从 GitHub 克隆/下载最新源码进行编译安装。${reset}"
+      printf "%s\n" "${gl_hui}国内网络可设 FAN_WEBSSH_REPO 自定义仓库或镜像地址，如 FAN_WEBSSH_REPO=https://ghfast.top/https://github.com/meimolihan/fan-webssh.git${reset}"
       printf "%s\n" "${gl_hui}首次运行的用户名/密码为随机生成，请查看服务日志：journalctl -u fan-webssh -n 50${reset}"
       exit 0
       ;;
@@ -286,14 +289,73 @@ if ! is_valid_src "${SRC_DIR}"; then
   if [ "${SRC_DIR_EXPLICIT}" = "1" ]; then
     error "未找到源码仓库 ${SRC_DIR}（-s 显式指定，需包含 server/ 与 web/ 目录）"
   fi
-  command -v git >/dev/null 2>&1 || error "未找到本地源码仓库，且缺少 git 无法从 GitHub 克隆"
-  ok "本地无源码仓库，尝试从 GitHub 克隆 ${gl_bai}${GITHUB_REPO}${reset}"
-  TMP_SRC="$(mktemp -d)/fan-webssh"
-  if ! git clone --depth=1 "${GITHUB_REPO}" "${TMP_SRC}" 2>/dev/null; then
-    error "克隆源码仓库失败（${GITHUB_REPO}），请使用 -s 指定本地源码目录"
+  ok "本地无源码仓库，尝试获取源码（可用环境变量 FAN_WEBSSH_REPO 自定义仓库地址）"
+  TMP_ROOT="$(mktemp -d)"
+  TMP_SRC="${TMP_ROOT}/fan-webssh"
+
+  # 候选仓库源：自定义 > GitHub 加速代理 > GitHub 主站（国内直连 GitHub 常超时）
+  REPO_CANDIDATES=(
+    "${FAN_WEBSSH_REPO:-}"
+    "https://git.221022.xyz/${GITHUB_REPO}"
+    "https://ghfast.top/${GITHUB_REPO}"
+    "${GITHUB_REPO}"
+  )
+
+  FETCHED="n"
+  if command -v timeout >/dev/null 2>&1; then CLONE_TIMEOUT="timeout 90"; else CLONE_TIMEOUT=""; fi
+
+  if command -v git >/dev/null 2>&1; then
+    for repo in "${REPO_CANDIDATES[@]}"; do
+      [ -n "${repo}" ] || continue
+      skip "尝试 git clone ${gl_bai}${repo}${reset}"
+      if ${CLONE_TIMEOUT} git clone --depth=1 "${repo}" "${TMP_SRC}" 2>"${TMP_ROOT}/clone.err"; then
+        FETCHED="y"
+        break
+      fi
+      printf "  %s %s\n" "${gl_huang}[警告]${reset}" "克隆失败：$(tail -n 1 "${TMP_ROOT}/clone.err" 2>/dev/null)"
+      rm -rf "${TMP_SRC}"
+    done
+  else
+    printf "  %s %s\n" "${gl_huang}[警告]${reset}" "未检测到 git，跳过 git clone，改用源码压缩包"
   fi
+
+  # 回退：下载源码压缩包并解压（无需 git，走与脚本下载一致的加速线路）
+  if [ "${FETCHED}" != "y" ]; then
+    ARCHIVE_URLS=(
+      "https://git.221022.xyz/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
+      "https://ghfast.top/https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
+      "https://github.com/meimolihan/fan-webssh/archive/refs/heads/main.tar.gz"
+      "https://codeload.github.com/meimolihan/fan-webssh/tar.gz/refs/heads/main"
+    )
+    if command -v curl >/dev/null 2>&1; then
+      DL_CMD="curl -fsSL"
+    elif command -v wget >/dev/null 2>&1; then
+      DL_CMD="wget -qO-"
+    else
+      DL_CMD=""
+    fi
+    for url in "${ARCHIVE_URLS[@]}"; do
+      [ -n "${url}" ] || continue
+      [ -n "${DL_CMD}" ] || break
+      skip "尝试下载源码包 ${gl_bai}${url}${reset}"
+      TMP_TGZ="${TMP_ROOT}/src.tar.gz"
+      if ${DL_CMD} "${url}" > "${TMP_TGZ}" 2>/dev/null \
+        && tar -xzf "${TMP_TGZ}" -C "${TMP_ROOT}" 2>/dev/null; then
+        EXTRACTED="$(find "${TMP_ROOT}" -maxdepth 1 -type d -name 'fan-webssh-*' -print -quit 2>/dev/null)"
+        if [ -n "${EXTRACTED}" ]; then
+          mv "${EXTRACTED}" "${TMP_SRC}"
+          FETCHED="y"
+          break
+        fi
+      fi
+      printf "  %s %s\n" "${gl_huang}[警告]${reset}" "下载失败：${url}"
+      rm -f "${TMP_TGZ}"
+    done
+  fi
+
+  [ "${FETCHED}" = "y" ] || error "获取源码仓库失败，请检查服务器网络，或使用 -s 指定本地源码目录"
   SRC_DIR="${TMP_SRC}"
-  ok "已从 GitHub 克隆源码仓库"
+  ok "已获取源码仓库"
 fi
 
 if command -v systemctl >/dev/null 2>&1; then
