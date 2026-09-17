@@ -1,5 +1,5 @@
-测试工作流
+修复备份还原功能
 
 Docker 镜像：
-  - Docker Hub：docker pull mobufan/fan-webssh:v1.0.5
-  - GHCR：docker pull ghcr.io/meimolihan/fan-webssh:v1.0.5
+  - Docker Hub：docker pull mobufan/fan-webssh:v1.0.6
+  - GHCR：docker pull ghcr.io/meimolihan/fan-webssh:v1.0.6

@@ -15,19 +15,23 @@ list_color_init() {
 }
 list_color_init
 # 默认值
-BACKUP_DIR="/vol2/1000/file/backup/fan-webssh-backup"
+BACKUP_DIR=""
 KEEP_NUM=6
 SERVICE="fan-webssh"
 CONFIG_FILE="/etc/fan-webssh.conf"
-DATA_DIR="/var/lib/fan-webssh"
+APP_DIR="/var/lib/fan-webssh"
+DATA_DIR="/var/lib/fan-webssh/app/db"
 
-# 从安装记录读取数据目录（不存在时使用默认值）
+# 从安装记录读取安装目录/数据目录/备份目录（不存在时使用默认值）
 if [ -f "${CONFIG_FILE}" ]; then
   while IFS='=' read -r KEY VALUE; do
     KEY=$(printf '%s' "$KEY" | tr -d ' ')
+    [ "$KEY" = "APP_DIR" ] && [ -n "$VALUE" ] && APP_DIR="${VALUE}"
     [ "$KEY" = "DATA_DIR" ] && [ -n "$VALUE" ] && DATA_DIR="${VALUE}"
+    [ "$KEY" = "BACKUP_DIR" ] && [ -n "$VALUE" ] && BACKUP_DIR="${VALUE}"
   done < "${CONFIG_FILE}"
 fi
+BACKUP_DIR="${BACKUP_DIR:-${APP_DIR}/backup}"
 
 # 参数解析，支持两种传参顺序可互换
 # 用法示例：

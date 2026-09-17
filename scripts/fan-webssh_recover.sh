@@ -14,30 +14,37 @@ list_color_init() {
     export reset=$'\033[0m'
 }
 list_color_init
-# 默认备份目录
-BACKUP_DIR="/vol2/1000/file/backup/fan-webssh-backup"
 SERVICE="fan-webssh"
 CONFIG_FILE="/etc/fan-webssh.conf"
-DATA_DIR="/var/lib/fan-webssh"
-
-# 从安装记录读取数据目录（不存在时使用默认值）
+APP_DIR="/var/lib/fan-webssh"
+DATA_DIR="/var/lib/fan-webssh/app/db"
+# 从安装记录读取安装目录/数据目录/备份目录（不存在时使用默认值）
+BACKUP_DIR=""
 if [ -f "${CONFIG_FILE}" ]; then
   while IFS='=' read -r KEY VALUE; do
     KEY=$(printf '%s' "$KEY" | tr -d ' ')
+    [ "$KEY" = "APP_DIR" ] && [ -n "$VALUE" ] && APP_DIR="${VALUE}"
     [ "$KEY" = "DATA_DIR" ] && [ -n "$VALUE" ] && DATA_DIR="${VALUE}"
+    [ "$KEY" = "BACKUP_DIR" ] && [ -n "$VALUE" ] && BACKUP_DIR="${VALUE}"
   done < "${CONFIG_FILE}"
 fi
+BACKUP_DIR="${BACKUP_DIR:-${APP_DIR}/backup}"
 
-# 参数解析：支持传备份目录，兼容逻辑同备份脚本
+# 参数解析：1) 备份目录 2) 指定还原文件（可选，缺省取最新备份）
 # 用法：
-# ./fan-webssh_recover.sh                     # 使用默认目录，取最新备份
-# ./fan-webssh_recover.sh /data/bak           # 指定备份目录，取该目录最新备份
+# ./fan-webssh_recover.sh                          # 默认目录，取该目录最新备份
+# ./fan-webssh_recover.sh /data/bak [文件名]        # 指定目录，可选指定文件
 parse_args() {
     local p1="${1:-}"
+    local p2="${2:-}"
     if [[ -n "${p1}" ]]; then
         BACKUP_DIR="${p1}"
     fi
+    if [[ -n "${p2}" ]]; then
+        RESTORE_FILE_ARG="${p2}"
+    fi
 }
+RESTORE_FILE_ARG=""
 parse_args "$@"
 
 echo -e "${gl_zi}>>> fan-webssh 恢复脚本${gl_bai}"
@@ -50,12 +57,22 @@ command -v systemctl >/dev/null 2>&1 || { echo -e "${gl_hong}❌ 未检测到 sy
 mkdir -p "${BACKUP_DIR}"
 
 echo -e ""
-echo -e "${gl_lan}>>> 查找最新备份文件${gl_bai}"
-f=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name "FanWebSSH-*.tar.gz" -printf "%f\n" \
-| sed -E 's/^FanWebSSH-([0-9]{4}-[0-9]{2}-[0-9]{2}(_[0-9]{2}-[0-9]{2}-[0-9]{2})?)\.tar\.gz$/\1 &/' \
-| sort -k1,1 \
-| tail -n1 \
-| awk '{print $2}')
+if [ -n "${RESTORE_FILE_ARG}" ]; then
+    echo -e "${gl_lan}>>> 使用指定备份文件${gl_bai}"
+    if [[ "${RESTORE_FILE_ARG}" =~ ^FanWebSSH-.*\.tar\.gz$ ]] && [ -f "${BACKUP_DIR}/${RESTORE_FILE_ARG}" ]; then
+        f="${RESTORE_FILE_ARG}"
+    else
+        echo -e "${gl_hong}❌ 指定的备份文件不存在: ${RESTORE_FILE_ARG}${gl_bai}"
+        exit 1
+    fi
+else
+    echo -e "${gl_lan}>>> 查找最新备份文件${gl_bai}"
+    f=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name "FanWebSSH-*.tar.gz" -printf "%f\n" \
+    | sed -E 's/^FanWebSSH-([0-9]{4}-[0-9]{2}-[0-9]{2}(_[0-9]{2}-[0-9]{2}-[0-9]{2})?)\.tar\.gz$/\1 &/' \
+    | sort -k1,1 \
+    | tail -n1 \
+    | awk '{print $2}')
+fi
 
 if [ -z "$f" ];then
     echo -e "${gl_hong}❌ 无备份文件，退出${gl_bai}"

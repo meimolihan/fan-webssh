@@ -8,8 +8,8 @@
 set -e
 
 APP_NAME="fan-webssh"
-APP_DIR="/opt/${APP_NAME}"
-DEFAULT_DATA_DIR="/var/lib/${APP_NAME}"
+APP_DIR="/var/lib/${APP_NAME}"
+DEFAULT_DATA_DIR="${APP_DIR}/app/db"
 DEFAULT_PORT=8082
 CONFIG_FILE="/etc/${APP_NAME}.conf"
 SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
@@ -180,7 +180,7 @@ fi
 
 PORT="$DEFAULT_PORT"
 DATA_DIR=""
-APP_DIR="/opt/${APP_NAME}"
+APP_DIR="/var/lib/${APP_NAME}"
 read_config
 
 # 从 service 文件回退读取安装参数（config 缺失时）

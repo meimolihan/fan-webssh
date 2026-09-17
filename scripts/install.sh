@@ -65,8 +65,8 @@ error() { printf "  %s %s\n" "${gl_hong}[错误]${reset}" "$1" >&2; exit 1; }
 # ================== customize me ==================
 APP_NAME="fan-webssh"
 DEFAULT_PORT=8082
-APP_DIR="/opt/${APP_NAME}"
-DEFAULT_DATA_DIR="/var/lib/${APP_NAME}"
+APP_DIR="/var/lib/${APP_NAME}"
+DEFAULT_DATA_DIR="${APP_DIR}/app/db"
 CONFIG_FILE="/etc/${APP_NAME}.conf"
 SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
 CLI_BIN="/usr/local/bin/${APP_NAME}"
@@ -342,6 +342,32 @@ install_binary() {
     chmod +x "${BIN_PATH}"
     rm -f "${tmp}" "${hdr}"
     ok "二进制已安装至 ${gl_bai}${BIN_PATH}${reset}"
+
+    # 二进制部署同样下发运维脚本（面板"备份/还原"依赖），失败仅告警不阻断安装
+    mkdir -p "${APP_DIR}/scripts" 2>/dev/null || true
+    local script_name="" raw_url=""
+    for script_name in fan-webssh_backup.sh fan-webssh_recover.sh; do
+      local raw_candidates=(
+        "https://github.com/${GITHUB_BIN_REPO}/raw/main/scripts/${script_name}"
+        "https://git.221022.xyz/${GITHUB_BIN_REPO}/raw/main/scripts/${script_name}"
+        "https://ghfast.top/${GITHUB_BIN_REPO}/raw/main/scripts/${script_name}"
+      )
+      for raw_url in "${raw_candidates[@]}"; do
+        DL_OK="n"
+        if [ "${DL_CURL}" = "y" ]; then
+          curl -fsSL --connect-timeout 15 --max-time 60 "${raw_url}" > "${APP_DIR}/scripts/${script_name}" 2>/dev/null && DL_OK="y"
+        else
+          wget -qO "${APP_DIR}/scripts/${script_name}" --timeout=60 "${raw_url}" 2>/dev/null && DL_OK="y"
+        fi
+        if [ "${DL_OK}" = "y" ] && [ -s "${APP_DIR}/scripts/${script_name}" ] \
+          && grep -q '^#!/bin/bash' "${APP_DIR}/scripts/${script_name}"; then
+          chmod +x "${APP_DIR}/scripts/${script_name}"
+          ok "已下发运维脚本 ${gl_bai}${script_name}${reset}"
+          break
+        fi
+        rm -f "${APP_DIR}/scripts/${script_name}"
+      done
+    done
     return 0
   done
   rm -f "${tmp}" "${hdr}"
@@ -556,9 +582,11 @@ fi
 mkdir -p "${APP_DIR}/app"
 rm -rf "${APP_DIR}/app/db"
 mkdir -p "${DATA_DIR}"
-ln -s "${DATA_DIR}" "${APP_DIR}/app/db"
+if [ "${DATA_DIR}" != "${APP_DIR}/app/db" ]; then
+  ln -s "${DATA_DIR}" "${APP_DIR}/app/db"
+fi
 chmod 700 "${DATA_DIR}"
-ok "数据目录 ${gl_lan}${DATA_DIR}${reset} 已就绪（app/db 软链至数据目录）"
+ok "数据目录 ${gl_lan}${DATA_DIR}${reset} 已就绪（app/db $( [ "${DATA_DIR}" = "${APP_DIR}/app/db" ] && echo "即为数据目录" || echo "软链至数据目录" )）"
 
 # 5) 安装记录
 mkdir -p "$(dirname "${CONFIG_FILE}")"
@@ -568,6 +596,7 @@ if [ "${INSTALL_METHOD}" = "binary" ]; then
 APP_DIR=${APP_DIR}
 PORT=${PORT}
 DATA_DIR=${DATA_DIR}
+BACKUP_DIR=${APP_DIR}/backup
 INSTALL_METHOD=binary
 BIN_PATH=${BIN_PATH}
 VERSION=${BIN_VER}
@@ -578,6 +607,7 @@ else
 APP_DIR=${APP_DIR}
 PORT=${PORT}
 DATA_DIR=${DATA_DIR}
+BACKUP_DIR=${APP_DIR}/backup
 INSTALL_METHOD=source
 NODE_BIN=$(command -v node)
 EOF

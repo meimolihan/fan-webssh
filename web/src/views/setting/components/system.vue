@@ -373,6 +373,7 @@ const handleBackup = async () => {
     $message.success('备份任务已启动')
   } catch (error) {
     console.error('启动备份失败:', error)
+    $message.error('启动备份失败')
   } finally {
     backupLoading.value = false
   }

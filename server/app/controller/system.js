@@ -4,9 +4,9 @@ const { execFile, spawn } = require('child_process')
 
 const SERVICE_NAME = 'fan-webssh'
 const CONFIG_FILE = '/etc/fan-webssh.conf'
-const DEFAULT_APP_DIR = '/opt/fan-webssh'
-const DEFAULT_DATA_DIR = '/var/lib/fan-webssh'
-const DEFAULT_BACKUP_DIR = '/vol2/1000/file/backup/fan-webssh-backup'
+const DEFAULT_APP_DIR = '/var/lib/fan-webssh'
+const DEFAULT_DATA_DIR = '/var/lib/fan-webssh/app/db'
+const DEFAULT_BACKUP_DIR = '' // 空表示缺省取 `${appDir}/backup`
 const SCRIPTS_REL_DIR = 'scripts'
 const JOBS_REL_DIR = '.jobs'
 const MAX_OUTPUT_LINES = 200
@@ -32,10 +32,13 @@ const readSystemConfig = () => {
       const value = match[2].replace(/\r$/, '')
       if (key === 'APP_DIR' && value) cfg.appDir = value
       if (key === 'DATA_DIR' && value) cfg.dataDir = value
+      if (key === 'BACKUP_DIR' && value) cfg.backupDir = value
     }
   } catch {
     // 配置不存在时使用默认值
   }
+  // 备份目录缺省取 `安装目录/backup`，避免硬编码路径
+  cfg.backupDir = cfg.backupDir || path.join(cfg.appDir, 'backup')
   return cfg
 }
 
@@ -109,10 +112,33 @@ const startJob = (cfg, scriptName, args) => {
   const logPath = path.join(jobsDir, `${ jobId }.log`)
 
   logger.info(`Starting ${ scriptName } job ${ jobId }:`, [scriptPath].concat(args).join(' '))
-  const child = spawn('bash', [scriptPath, ...args], {
-    stdio: ['ignore', fs.openSync(logPath, 'a'), fs.openSync(logPath, 'a')],
-    detached: true
-  })
+  const spawnDetached = (bin, argv) =>
+    spawn(bin, argv, {
+      stdio: ['ignore', fs.openSync(logPath, 'a'), fs.openSync(logPath, 'a')],
+      detached: true
+    })
+
+  // 备份/还原脚本会执行 systemctl stop 本服务；若脚本由面板进程直接 spawn，
+  // 它会落在本服务同一个 cgroup 内，stop 会把脚本自身一并终止（任务中途夭折）。
+  // 因此优先以 systemd-run --scope 将脚本放入独立 transient scope，脱离服务 cgroup。
+  const bin = '/usr/bin/bash'
+  const useScope = isSystemdAvailable() && fs.existsSync('/usr/bin/systemd-run')
+  let child
+  let scoped = null
+  if (useScope) {
+    scoped = spawnDetached('systemd-run', ['--scope', '--quiet', '--', bin, scriptPath, ...args])
+    child = scoped
+    scoped.on('error', () => {
+      // systemd-run 不可用/受限时回退为直接执行
+      const fallback = spawnDetached(bin, [scriptPath, ...args])
+      fallback.unref()
+      runningJobs.set(jobId, fallback)
+      fallback.on('exit', () => runningJobs.delete(jobId))
+      fallback.on('error', () => runningJobs.delete(jobId))
+    })
+  } else {
+    child = spawnDetached(bin, [scriptPath, ...args])
+  }
   child.unref()
   runningJobs.set(jobId, child)
   child.on('exit', () => runningJobs.delete(jobId))
@@ -197,7 +223,8 @@ const systemRecover = async ({ res, request }) => {
     }
   }
   try {
-    const { jobId, logPath } = startJob(cfg, 'fan-webssh_recover.sh', [backupDir])
+    const args = [backupDir].concat(fileName ? [path.basename(String(fileName))] : [])
+    const { jobId, logPath } = startJob(cfg, 'fan-webssh_recover.sh', args)
     res.success({ data: { jobId, logPath }, msg: '恢复任务已启动' })
   } catch (error) {
     logger.error('Failed to start recover:', error.message)

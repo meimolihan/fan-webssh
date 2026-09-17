@@ -26,10 +26,9 @@ const SERVICE_FILE = `/etc/systemd/system/${ SERVICE_NAME }.service`
 const RECORD_FILE = `/etc/${ APP_NAME }.conf`
 const BIN_NAME = APP_NAME
 const WRAPPER_FILE = `/usr/local/bin/${ BIN_NAME }`
-// 默认程序目录：取 CLI 自身的上一级目录（systemd 安装为 /opt/fan-webssh，容器内为 /fan-webssh）
+// 默认程序目录：取 CLI 自身的上一级目录（systemd 安装为 /var/lib/fan-webssh，容器内为 /fan-webssh）
 const DEFAULT_APP_DIR = path.resolve(__dirname, '..')
-const DEFAULT_DATA_DIR = `/var/lib/${ APP_NAME }`
-const DEFAULT_BACKUP_DIR = '/vol2/1000/file/backup/fan-webssh-backup'
+const DEFAULT_DATA_DIR = `/var/lib/${ APP_NAME }/app/db`
 const DEFAULT_PORT = 8082
 
 let VERSION = 'unknown'
@@ -121,10 +120,12 @@ function readRecord(key) {
 }
 
 function resolvePaths() {
+  const appDir = readRecord('APP_DIR') || DEFAULT_APP_DIR
   return {
-    appDir: readRecord('APP_DIR') || DEFAULT_APP_DIR,
+    appDir,
     dataDir: readRecord('DATA_DIR') || DEFAULT_DATA_DIR,
-    backupDir: readRecord('BACKUP_DIR') || DEFAULT_BACKUP_DIR,
+    // 备份目录缺省取 `安装目录/backup`
+    backupDir: readRecord('BACKUP_DIR') || path.join(appDir, 'backup'),
     port: readRecord('PORT') || String(DEFAULT_PORT),
     nodeBin: readRecord('NODE_BIN') || process.execPath
   }
