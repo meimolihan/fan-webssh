@@ -235,9 +235,11 @@ info "写入发版备注 RELEASE_NOTES.md"
     printf '%s\n' "${MSG}"
     printf '\n'
   fi
-  printf 'Docker 镜像：\n'
-  printf '  - Docker Hub：docker pull mobufan/fan-webssh:%s\n' "${TAG}"
-  printf '  - GHCR：docker pull ghcr.io/meimolihan/fan-webssh:%s\n' "${TAG}"
+  printf 'docker pull mobufan/fan-webssh:latest\n'
+  printf 'docker pull mobufan/fan-webssh:%s\n' "${TAG}"
+  printf '\n'
+  printf 'docker pull ghcr.io/meimolihan/fan-webssh:latest\n'
+  printf 'docker pull ghcr.io/meimolihan/fan-webssh:%s\n' "${TAG}"
 } > RELEASE_NOTES.md
 
 # ===================== Git 提交 & Tag =====================
