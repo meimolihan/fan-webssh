@@ -1,5 +1,5 @@
 {
-  "version": "1.0.6",
+  "version": "1.0.5",
   "name": "fan-webssh",
   "description": "Fan-WebSSH - 多功能Linux服务器终端面板(webSSH&webSFTP)",
   "private": true,
